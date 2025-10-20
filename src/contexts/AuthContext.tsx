@@ -8,7 +8,7 @@ interface User {
   name?: string;
   avatar?: string;
   role?: string;
-  isMasterAdmin?: boolean;
+  isAdmin?: boolean;
 }
 
 interface AuthContextType {

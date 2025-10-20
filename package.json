@@ -39,11 +39,14 @@
         "dotenv": "*",
         "embla-carousel-react": "*",
         "express": "*",
+        "express-rate-limit": "^7.4.0",
         "input-otp": "^1.4.2",
         "lucide-react": "^0.487.0",
         "motion": "*",
         "next-themes": "^0.4.6",
         "nodemailer": "*",
+        "pino": "^9.6.0",
+        "pino-http": "^10.4.0",
         "re-resizable": "*",
         "react": "^18.3.1",
         "react-day-picker": "^8.10.1",
@@ -54,7 +57,8 @@
         "recharts": "^2.15.2",
         "sonner": "^2.0.3",
         "tailwind-merge": "*",
-        "vaul": "^1.1.2"
+        "vaul": "^1.1.2",
+        "zod": "^3.24.1"
     },
     "devDependencies": {
         "@types/node": "^20.10.0",

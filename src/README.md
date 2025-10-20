@@ -39,7 +39,7 @@ npm run dev
 
 - **OTP Service:** Stack Auth + Neon Database
 - **Project ID:** `<STACK_PROJECT_ID>`
-- **Master Backdoor:** `<MASTER_PASSCODE>` (emergency admin access)
+- **Server Secrets:** managed via environment variables (see `.env` templates)
 - **Schema:** `/database/PRODUCTION_SCHEMA.sql`
 - **Backend:** `/server/api.ts`
 
@@ -68,8 +68,8 @@ npm run dev
 │   ├── generator/           ← Generator-specific
 │   └── ui/                  ← shadcn/ui components
 ├── config/                   ← Configuration files
-│   ├── stackAuth.ts         ← Stack Auth config
-│   └── masterAccess.ts      ← Master backdoor
+│   ├── stackAuth.ts         ← Stack Auth config (env-driven)
+│   └── masterAccess.ts      ← Legacy stub (master access disabled)
 ├── server/                   ← Backend API
 │   ├── .env.example         ← Backend env template (SECRETS!)
 │   └── api.ts               ← Express server
@@ -87,6 +87,8 @@ npm run dev
 - `VITE_GOOGLE_CLIENT_ID` - Google OAuth (safe)
 
 ### Backend (/server/.env) - SECRETS!
+- `STACK_PROJECT_ID` - Stack Auth project (server validation)
+- `STACK_PUBLISHABLE_CLIENT_KEY` - Stack Auth publishable key (server usage)
 - `STACK_SECRET_SERVER_KEY` - Stack Auth secret (NEVER expose!)
 - `DATABASE_URL` - Neon connection (NEVER expose!)
 - `GOOGLE_CLIENT_SECRET` - Google OAuth secret (NEVER expose!)
@@ -109,6 +111,7 @@ npm run dev
 
 ### Other
 - **[Attributions.md](/Attributions.md)** - Credits and licenses
+- **[server/sql/stored_procedures.sql](/src/server/sql/stored_procedures.sql)** - Required database functions
 
 ---
 
