@@ -8,26 +8,16 @@
  * - Master access passcode (secret backdoor)
  */
 
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { isMasterPasscode, createMasterUser } from '../config/masterAccess';
-import { STACK_CONFIG } from '../config/stackAuth';
+import { getStackConfig } from '../config/stackAuth';
+import { env } from './env';
 
-const API_BASE = import.meta.env?.VITE_API_URL || '/api'; // Stack Auth backend URL
-const STACK_PROJECT_ID = STACK_CONFIG.projectId;
-const STACK_PUBLISHABLE_KEY = STACK_CONFIG.publishableClientKey;
+const API_BASE = env.apiUrl; // Stack Auth backend URL
+const { projectId: STACK_PROJECT_ID, publishableClientKey: STACK_PUBLISHABLE_KEY } = getStackConfig();
 
 // Safe way to check if we're in development mode
-const IS_DEV_MODE = (() => {
-  try {
-    return import.meta.env?.DEV || import.meta.env?.MODE === 'development' || process.env.NODE_ENV === 'development';
-  } catch {
-    // Fallback: assume dev mode if on localhost
-    return typeof window !== 'undefined' && (
-      window.location.hostname === 'localhost' || 
-      window.location.hostname === '127.0.0.1'
-    );
-  }
-})();
+const IS_DEV_MODE = env.isDev;
 
 interface User {
   id: string;
@@ -305,8 +295,8 @@ export async function signOut(): Promise<void> {
  * Initiate Google OAuth flow
  */
 export function initiateGoogleOAuth(): void {
-  const clientId = import.meta?.env?.VITE_GOOGLE_CLIENT_ID;
-  const redirectUri = import.meta?.env?.VITE_GOOGLE_REDIRECT_URI || `${window.location.origin}/auth/callback`;
+  const clientId = env.googleClientId;
+  const redirectUri = env.googleRedirectUri || `${window.location.origin}/auth/callback`;
 
   if (!clientId) {
     console.error('❌ Google OAuth not configured');

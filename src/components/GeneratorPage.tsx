@@ -43,7 +43,7 @@ import {
   getGeneratorState,
   clearGeneratorState 
 } from '../utils/inputPersistence';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { useGenerator } from '../contexts/GeneratorContext';
 import { SelectionChip } from './shared/SelectionChip';

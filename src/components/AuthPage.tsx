@@ -4,7 +4,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { getAuthRedirect, clearAuthRedirect, getFreestyleInput } from '../utils/inputPersistence';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { ArrowLeft } from 'lucide-react';
 
 interface AuthPageProps {

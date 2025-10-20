@@ -6,7 +6,9 @@
 // Note: In production, you'll need to use a proper backend API
 // This is a frontend-safe approach using edge functions or serverless functions
 
-const DATABASE_URL = import.meta.env.VITE_DATABASE_URL || '';
+import { env } from './env';
+
+const DATABASE_URL = env.databaseUrl;
 
 interface QueryResult<T = any> {
   rows: T[];

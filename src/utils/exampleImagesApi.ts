@@ -2,7 +2,9 @@
  * Example Images API - Fetch example tattoo images from Neon database
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+import { env } from './env';
+
+const API_BASE_URL = env.apiBaseUrl;
 
 export interface ExampleImage {
   id: string;
