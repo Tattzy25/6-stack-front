@@ -11,12 +11,32 @@
  * - 30-day sessions
  */
 
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import { neon } from '@neondatabase/serverless';
 import crypto from 'crypto';
 import { sendOTPEmail, sendWelcomeEmail, testEmailConnection } from './emailService.js';
+import { createDatabaseClient, pingDatabase, type DatabaseClient } from './database.js';
+
+type ServerOverrides = {
+  sql?: DatabaseClient;
+  sendOTPEmail?: typeof sendOTPEmail;
+  sendWelcomeEmail?: typeof sendWelcomeEmail;
+  testEmailConnection?: typeof testEmailConnection;
+  pingDatabase?: typeof pingDatabase;
+};
+
+const overrides: ServerOverrides =
+  (globalThis as unknown as { __TATTY_SERVER_OVERRIDES__?: ServerOverrides }).__TATTY_SERVER_OVERRIDES__ ?? {};
+
+const emailService = {
+  sendOTPEmail: overrides.sendOTPEmail ?? sendOTPEmail,
+  sendWelcomeEmail: overrides.sendWelcomeEmail ?? sendWelcomeEmail,
+  testEmailConnection: overrides.testEmailConnection ?? testEmailConnection,
+};
+
+const pingDb = overrides.pingDatabase ?? pingDatabase;
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -35,7 +55,7 @@ if (!STACK_PROJECT_ID || !STACK_SECRET_KEY) {
 const MASTER_PASSWORD = process.env.MASTER_PASSWORD || '';
 
 // Database connection
-const sql = neon(process.env.DATABASE_URL || '');
+const sql = overrides.sql ?? createDatabaseClient(process.env.DATABASE_URL || '');
 
 // Middleware
 app.use(cors({
@@ -45,31 +65,63 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
+// ============================================
+// HEALTH CHECKS
+// ============================================
+
+app.get('/health', async (_req, res) => {
+  const timestamp = new Date().toISOString();
+
+  if (!process.env.DATABASE_URL) {
+    return res.json({
+      status: 'ok',
+      timestamp,
+      database: 'not_configured',
+      environment: process.env.NODE_ENV || 'development',
+    });
+  }
+
+  const databaseOnline = await pingDb(sql);
+  const status = databaseOnline ? 'ok' : 'error';
+  const httpStatus = databaseOnline ? 200 : 503;
+
+  res.status(httpStatus).json({
+    status,
+    timestamp,
+    database: databaseOnline ? 'connected' : 'disconnected',
+    environment: process.env.NODE_ENV || 'development',
+  });
+});
+
 // ==========================================
 // EXAMPLE IMAGES ROUTES
 // ==========================================
 
 // Get random examples
 app.get('/api/examples/random', async (req, res) => {
-  const { category, limit = '6' } = req.query;
-  
+  const categoryParam = typeof req.query.category === 'string' ? req.query.category : undefined;
+  const limitParam = typeof req.query.limit === 'string' ? req.query.limit : undefined;
+  const limitValue = Number.parseInt(limitParam ?? '6', 10) || 6;
+
   try {
     const results = await sql`
       SELECT * FROM get_random_examples(
-        ${category || null}::VARCHAR,
-        ${parseInt(limit)}::INTEGER
+        ${categoryParam ?? null}::VARCHAR,
+        ${limitValue}::INTEGER
       )
     `;
-    
-    res.json({ 
-      success: true, 
-      examples: results,
-      count: results.length 
+
+    const rows = Array.isArray(results) ? (results as any[]) : [];
+
+    res.json({
+      success: true,
+      examples: rows,
+      count: rows.length
     });
   } catch (error) {
     console.error('Error fetching random examples:', error);
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       error: 'Failed to fetch examples',
       examples: []
     });
@@ -82,11 +134,13 @@ app.get('/api/examples/featured', async (req, res) => {
     const results = await sql`
       SELECT * FROM get_featured_examples()
     `;
-    
-    res.json({ 
-      success: true, 
-      examples: results,
-      count: results.length 
+
+    const rows = Array.isArray(results) ? (results as any[]) : [];
+
+    res.json({
+      success: true,
+      examples: rows,
+      count: rows.length
     });
   } catch (error) {
     console.error('Error fetching featured examples:', error);
@@ -100,23 +154,24 @@ app.get('/api/examples/featured', async (req, res) => {
 
 // Get examples by category
 app.get('/api/examples', async (req, res) => {
-  const { category, limit } = req.query;
-  
+  const categoryParam = typeof req.query.category === 'string' ? req.query.category : undefined;
+  const limitParam = typeof req.query.limit === 'string' ? req.query.limit : undefined;
+
   try {
-    let results;
-    
-    if (category) {
+    let results: unknown;
+
+    if (categoryParam) {
       results = await sql`
-        SELECT 
+        SELECT
           id, title, description, image_url, thumbnail_url,
           category, style, tags, is_featured, display_order
         FROM example_images
-        WHERE is_active = TRUE AND category = ${category}
+        WHERE is_active = TRUE AND category = ${categoryParam}
         ORDER BY display_order, created_at DESC
       `;
     } else {
       results = await sql`
-        SELECT 
+        SELECT
           id, title, description, image_url, thumbnail_url,
           category, style, tags, is_featured, display_order
         FROM example_images
@@ -124,15 +179,15 @@ app.get('/api/examples', async (req, res) => {
         ORDER BY display_order, created_at DESC
       `;
     }
-    
-    if (limit) {
-      results = results.slice(0, parseInt(limit));
-    }
-    
-    res.json({ 
-      success: true, 
-      examples: results,
-      count: results.length 
+
+    const rows = Array.isArray(results) ? (results as any[]) : [];
+
+    const limitedRows = limitParam ? rows.slice(0, Number.parseInt(limitParam, 10) || rows.length) : rows;
+
+    res.json({
+      success: true,
+      examples: limitedRows,
+      count: limitedRows.length
     });
   } catch (error) {
     console.error('Error fetching examples:', error);
@@ -163,9 +218,11 @@ app.post('/api/examples/:id/view', async (req, res) => {
 });
 
 // Test email connection on startup
-testEmailConnection()
-  .then(() => console.log('✅ Email service connected'))
-  .catch(() => console.warn('⚠️  Email service unavailable - OTPs will log to console'));
+if (process.env.NODE_ENV !== 'test') {
+  emailService.testEmailConnection()
+    .then(() => console.log('✅ Email service connected'))
+    .catch(() => console.warn('⚠️  Email service unavailable - OTPs will log to console'));
+}
 
 // ============================================
 // HELPER FUNCTIONS
@@ -174,6 +231,10 @@ testEmailConnection()
 // Generate random 6-digit OTP
 function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+function asRows<T = any>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
 }
 
 // Generate session token
@@ -229,7 +290,7 @@ app.post('/api/auth/otp/send', async (req, res) => {
     `;
 
     // Send OTP email
-    const emailSent = await sendOTPEmail(email, code);
+    const emailSent = await emailService.sendOTPEmail(email, code);
 
     console.log(`📧 OTP sent to ${email}: ${code} (expires in 10 min)`);
 
@@ -269,9 +330,10 @@ app.post('/api/auth/otp/verify', async (req, res) => {
       isMasterAccess = true;
 
       // Get or create admin user
-      user = await sql`
+      const adminResult = await sql`
         SELECT * FROM users WHERE email = ${email}
-      `.then(r => r[0]);
+      `;
+      user = asRows(adminResult)[0];
 
       if (!user) {
         const newUsers = await sql`
@@ -279,7 +341,7 @@ app.post('/api/auth/otp/verify', async (req, res) => {
           VALUES (${email}, true, 'email', 'admin', true)
           RETURNING *
         `;
-        user = newUsers[0];
+        user = asRows(newUsers)[0];
 
         // Create user profile
         await sql`
@@ -310,7 +372,9 @@ app.post('/api/auth/otp/verify', async (req, res) => {
         LIMIT 1
       `;
 
-      if (otpResult.length === 0) {
+      const otpRows = asRows(otpResult);
+
+      if (otpRows.length === 0) {
         return res.status(400).json({ message: 'Invalid or expired OTP' });
       }
 
@@ -318,13 +382,14 @@ app.post('/api/auth/otp/verify', async (req, res) => {
       await sql`
         UPDATE otp_codes
         SET used = true
-        WHERE id = ${otpResult[0].id}
+        WHERE id = ${otpRows[0]?.id}
       `;
 
       // Get or create user
-      user = await sql`
+      const userResult = await sql`
         SELECT * FROM users WHERE email = ${email}
-      `.then(r => r[0]);
+      `;
+      user = asRows(userResult)[0];
 
       if (!user) {
         const newUsers = await sql`
@@ -332,7 +397,7 @@ app.post('/api/auth/otp/verify', async (req, res) => {
           VALUES (${email}, true, 'email', 'user')
           RETURNING *
         `;
-        user = newUsers[0];
+        user = asRows(newUsers)[0];
 
         // Create user profile
         await sql`
@@ -342,7 +407,7 @@ app.post('/api/auth/otp/verify', async (req, res) => {
         `;
 
         // Send welcome email (don't await - send in background)
-        sendWelcomeEmail(email, user.name).catch(err => 
+        emailService.sendWelcomeEmail(email, user.name).catch(err =>
           console.error('Failed to send welcome email:', err)
         );
 
@@ -351,13 +416,14 @@ app.post('/api/auth/otp/verify', async (req, res) => {
     }
 
     // Update last login and increment login count
-    await sql`
+    const updatedUser = await sql`
       UPDATE users
       SET last_login_at = NOW(),
           login_count = login_count + 1
       WHERE id = ${user.id}
       RETURNING *
-    `.then(r => { user = r[0]; });
+    `;
+    user = asRows(updatedUser)[0] ?? user;
 
     // Create session
     const sessionToken = generateSessionToken();
@@ -510,21 +576,23 @@ app.post('/api/auth/google/callback', async (req, res) => {
     const googleUser = await userInfoResponse.json();
 
     // Get or create user in database
-    let user = await sql`
-      SELECT * FROM users 
-      WHERE provider = 'google' 
+    const providerResult = await sql`
+      SELECT * FROM users
+      WHERE provider = 'google'
       AND provider_id = ${googleUser.id}
-    `.then(r => r[0]);
+    `;
+    let user = asRows(providerResult)[0];
 
     if (!user) {
       // Check if email already exists
-      user = await sql`
+      const emailResult = await sql`
         SELECT * FROM users WHERE email = ${googleUser.email}
-      `.then(r => r[0]);
+      `;
+      user = asRows(emailResult)[0];
 
       if (user) {
         // Update existing user with Google OAuth
-        await sql`
+        const updatedGoogleUser = await sql`
           UPDATE users
           SET provider = 'google',
               provider_id = ${googleUser.id},
@@ -535,12 +603,13 @@ app.post('/api/auth/google/callback', async (req, res) => {
               login_count = login_count + 1
           WHERE id = ${user.id}
           RETURNING *
-        `.then(r => { user = r[0]; });
+        `;
+        user = asRows(updatedGoogleUser)[0] ?? user;
       } else {
         // Create new user
         const newUsers = await sql`
           INSERT INTO users (
-            email, 
+            email,
             name, 
             avatar_url, 
             email_verified, 
@@ -559,7 +628,7 @@ app.post('/api/auth/google/callback', async (req, res) => {
           )
           RETURNING *
         `;
-        user = newUsers[0];
+        user = asRows(newUsers)[0];
 
         // Create user profile
         await sql`
@@ -572,13 +641,14 @@ app.post('/api/auth/google/callback', async (req, res) => {
       }
     } else {
       // Update last login
-      await sql`
+      const updatedExistingUser = await sql`
         UPDATE users
         SET last_login_at = NOW(),
             login_count = login_count + 1
         WHERE id = ${user.id}
         RETURNING *
-      `.then(r => { user = r[0]; });
+      `;
+      user = asRows(updatedExistingUser)[0] ?? user;
     }
 
     // Create session
@@ -646,10 +716,11 @@ app.post('/api/db/query', async (req, res) => {
 
     // Execute query
     const result = await sql(query, params);
+    const rows = asRows(result);
 
     res.json({
-      rows: result,
-      rowCount: result.length,
+      rows,
+      rowCount: rows.length,
     });
   } catch (error) {
     console.error('Database query error:', error);
@@ -1086,27 +1157,31 @@ app.get('/api/health', async (req, res) => {
 // ============================================
 
 // Clean up expired OTPs and sessions every hour
-setInterval(async () => {
-  try {
-    const otpResult = await sql`SELECT cleanup_expired_otps()`;
-    const sessionResult = await sql`SELECT cleanup_expired_sessions()`;
-    console.log('🧹 Cleaned up expired OTPs and sessions');
-  } catch (error) {
-    console.error('Cleanup error:', error);
-  }
-}, 60 * 60 * 1000); // 1 hour
+if (process.env.NODE_ENV !== 'test') {
+  setInterval(async () => {
+    try {
+      await sql`SELECT cleanup_expired_otps()`;
+      await sql`SELECT cleanup_expired_sessions()`;
+      console.log('🧹 Cleaned up expired OTPs and sessions');
+    } catch (error) {
+      console.error('Cleanup error:', error);
+    }
+  }, 60 * 60 * 1000); // 1 hour
+}
 
-// Start server
-app.listen(PORT, () => {
-  console.log('');
-  console.log('🚀 TaTTTy API Server Running');
-  console.log('================================');
-  console.log(`📡 URL: http://localhost:${PORT}`);
-  console.log(`📊 Database: ${process.env.DATABASE_URL ? 'Connected ✅' : 'Not configured ❌'}`);
-  console.log(`📧 Email: ${process.env.SMTP_USER || 'Not configured'}`);
-  // Removed logging of master password to avoid leaking secrets
-  console.log('================================');
-  console.log('');
-});
+// Start server (skipped in tests)
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log('');
+    console.log('🚀 TaTTTy API Server Running');
+    console.log('================================');
+    console.log(`📡 URL: http://localhost:${PORT}`);
+    console.log(`📊 Database: ${process.env.DATABASE_URL ? 'Connected ✅' : 'Not configured ❌'}`);
+    console.log(`📧 Email: ${process.env.SMTP_USER || 'Not configured'}`);
+    // Removed logging of master password to avoid leaking secrets
+    console.log('================================');
+    console.log('');
+  });
+}
 
 export default app;

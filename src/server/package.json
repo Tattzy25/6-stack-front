@@ -3,12 +3,14 @@
   "version": "1.0.0",
   "type": "module",
   "description": "Backend API for TaTTTy authentication and database operations",
-  "main": "api.ts",
+  "main": "dist/api.js",
   "scripts": {
     "dev": "tsx watch api.ts",
-    "start": "node api.js",
-    "build": "tsc",
-    "test:db": "node test-connection.js"
+    "start": "node dist/api.js",
+    "build": "tsc --project tsconfig.json && node scripts/postbuild.mjs",
+    "test:db": "node test-connection.js",
+    "test": "tsx --test tests/otp.test.ts tests/database.test.ts",
+    "test:watch": "tsx --watch --test tests/otp.test.ts tests/database.test.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.9.0",
