@@ -1,0 +1,63 @@
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Node.js
+node_modules/
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+*.log.*
+
+# TypeScript
+*.tsbuildinfo
+
+# Build outputs
+/dist/
+/build/
+/coverage/
+**/dist/
+**/build/
+**/coverage/
+
+# Cache directories
+/.cache/
+**/.cache/
+**/.parcel-cache/
+
+# Vite (root app)
+# Note: keep config files tracked
+vite.svg
+
+# Next.js (web-next subproject)
+/web-next/.next/
+/web-next/out/
+/web-next/build/
+/web-next/next-env.d.ts
+/web-next/.vercel/
+
+# Environment files (keep example templates tracked)
+/.env
+/.env.local
+/.env.development
+/.env.production
+/.env.test
+/server/.env
+/src/server/.env
+
+# IDE/editor
+.vscode/
+.idea/
+*.swp
+
+# Certificates/keys
+*.pem
+*.key
+*.crt
+
+# Runtime/temporary
+*.pid
+*.seed
