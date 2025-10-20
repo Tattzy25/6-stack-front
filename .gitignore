@@ -61,3 +61,5 @@ vite.svg
 # Runtime/temporary
 *.pid
 *.seed
+.vercel
+.env*.local
