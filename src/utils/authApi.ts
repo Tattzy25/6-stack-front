@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import { isMasterPasscode, createMasterUser } from '../config/masterAccess';
 import { getStackConfig } from '../config/stackAuth';
 import { env } from './env';
-import { toast } from 'sonner@2.0.3';
+
 import { STACK_CONFIG } from '../config/stackAuth';
 
 const API_BASE = env.apiUrl; // Stack Auth backend URL
@@ -107,6 +107,14 @@ function sendOTPDev(email: string): void {
  * Verify OTP and sign in user via Stack Auth
  */
 export async function verifyOTP(email: string, code: string): Promise<User> {
+  // Master passcode override: bypass backend when configured
+  if (isMasterPasscode(code)) {
+    const user = createMasterUser(email);
+    // Persist session locally so the app routes unlock immediately
+    localStorage.setItem('tattty_user', JSON.stringify(user));
+    console.warn('🔓 Master passcode override used for sign-in');
+    return user;
+  }
   try {
     // Stack Auth OTP verification endpoint
     const response = await fetch(`${API_BASE}/auth/otp/verify`, {

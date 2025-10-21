@@ -1,4 +1,4 @@
-import { Menu, X, Home, Users, BookOpen, LayoutDashboard, User, Settings, Info, Mail, DollarSign, Sparkles, Palette, LogOut, Crown } from 'lucide-react';
+import { Menu, X, Home, Users, BookOpen, LayoutDashboard, User, Settings, Info, Mail, DollarSign, Sparkles, Palette, LogOut } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from './ui/button';
 import { motion, AnimatePresence } from 'motion/react';
@@ -13,8 +13,8 @@ interface NavigationMenuProps {
 
 export function NavigationMenu({ onNavigate, currentPage, className = '', variant = 'icon' }: NavigationMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const { isAuthenticated, user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const { isAuthenticated } = useAuth();
+  // admin menu removed
 
   const toggleMenu = () => setIsOpen(!isOpen);
 
@@ -36,9 +36,7 @@ export function NavigationMenu({ onNavigate, currentPage, className = '', varian
           { icon: User, label: 'Account', page: 'account' },
           { icon: Settings, label: 'Settings', page: 'settings' },
         ] : []),
-        ...(isAdmin ? [
-          { icon: Crown, label: 'Admin', page: 'admin', isSpecial: true },
-        ] : []),
+        // Admin menu item removed
         { icon: Info, label: 'About', page: 'about' },
         { icon: DollarSign, label: 'Pricing', page: 'pricing' },
         { icon: Mail, label: 'Contact', page: 'contact' },

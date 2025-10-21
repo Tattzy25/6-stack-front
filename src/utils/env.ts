@@ -9,6 +9,7 @@ interface ClientEnv {
   readonly stackPublishableClientKey: string;
   readonly googleClientId: string;
   readonly googleRedirectUri?: string;
+  readonly masterCode?: string;
 }
 
 const rawEnv: Record<string, unknown> = typeof import.meta !== 'undefined' ? import.meta.env ?? {} : {};
@@ -28,6 +29,7 @@ const env: ClientEnv = {
   stackPublishableClientKey: sanitize(rawEnv.VITE_STACK_PUBLISHABLE_CLIENT_KEY),
   googleClientId: sanitize(rawEnv.VITE_GOOGLE_CLIENT_ID),
   googleRedirectUri: sanitize(rawEnv.VITE_GOOGLE_REDIRECT_URI) || undefined,
+  masterCode: sanitize(rawEnv.VITE_MASTER_CODE) || undefined,
 };
 
 function validateEnv(config: ClientEnv): void {

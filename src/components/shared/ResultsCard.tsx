@@ -38,7 +38,7 @@ interface ResultsCardProps {
   
   // Post-generation editing options
   showEditOptions?: boolean;
-  onUpscale?: (scale: '2x' | '4x') => void;
+  onUpscale?: (scale: '2x' | '4x' | '40x') => void;
   onRelight?: () => void;
   onErase?: () => void;
   onInpaint?: () => void;
@@ -251,7 +251,7 @@ export function ResultsCard({
                     }`}
                   >
                     <Sparkles size={16} />
-                    <span className="text-[20px] font-[Orbitron]">Adjust</span>
+                    <span className="text-[20px] font-[Orbitron]">Upscale</span>
                   </button>
 
                   {/* Retouch Button */}
@@ -312,13 +312,13 @@ export function ResultsCard({
                     <div className="flex flex-wrap gap-2 px-[0px] py-[20px] justify-center">
                       <button
                         onClick={() => {
-                          onUpscale?.('2x');
-                          toast.success('Upscaling to 2x...');
+                          onUpscale?.('4x');
+                          toast.success('Upscaling to 4x...');
                         }}
                         className="px-3 py-2 rounded-lg bg-[#57f1d6]/10 border border-[#57f1d6]/30 text-white hover:bg-[#57f1d6]/20 transition-all flex items-center gap-2"
                       >
                         <Sparkles size={14} />
-                        <span style={{ fontSize: '20px' }}>Upscale 2x</span>
+                        <span style={{ fontSize: '20px' }}>Upscale 4X</span>
                         <span className="flex items-center gap-1 text-xs text-[#57f1d6]">
                           <Droplet size={12} fill="#57f1d6" />
                           10
@@ -326,30 +326,16 @@ export function ResultsCard({
                       </button>
                       <button
                         onClick={() => {
-                          onUpscale?.('4x');
-                          toast.success('Upscaling to 4x...');
+                          onUpscale?.('40x');
+                          toast.success('Upscaling to 40x...');
                         }}
                         className="px-3 py-2 rounded-lg bg-[#57f1d6]/10 border border-[#57f1d6]/30 text-white hover:bg-[#57f1d6]/20 transition-all flex items-center gap-2"
                       >
                         <Sparkles size={14} />
-                        <span style={{ fontSize: '20px' }}>Upscale 4x</span>
+                        <span style={{ fontSize: '20px' }}>Upscale 40X</span>
                         <span className="flex items-center gap-1 text-xs text-[#57f1d6]">
                           <Droplet size={12} fill="#57f1d6" />
                           20
-                        </span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          onRelight?.();
-                          toast.success('Relighting image...');
-                        }}
-                        className="px-3 py-2 rounded-lg bg-[#57f1d6]/10 border border-[#57f1d6]/30 text-white hover:bg-[#57f1d6]/20 transition-all flex items-center gap-2"
-                      >
-                        <Sparkles size={14} />
-                        <span style={{ fontSize: '20px' }}>Relight</span>
-                        <span className="flex items-center gap-1 text-xs text-[#57f1d6]">
-                          <Droplet size={12} fill="#57f1d6" />
-                          8
                         </span>
                       </button>
                     </div>
