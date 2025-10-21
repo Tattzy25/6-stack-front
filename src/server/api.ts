@@ -28,6 +28,7 @@ import examplesRouter from './routes/examples.js';
 import authRouter from './routes/auth.js';
 import dbRouter from './routes/db.js';
 import aiRouter from './routes/ai.js';
+import inkRouter from './routes/ink.js';
 
 const app = express();
 const PORT = appConfig.port || 3001;
@@ -49,6 +50,7 @@ app.use(examplesRouter);
 app.use(authRouter);
 app.use(dbRouter);
 app.use(aiRouter);
+app.use(inkRouter);
 
 // Test email connection on startup
 testEmailConnection()

@@ -36,7 +36,7 @@ export function NavigationMenu({ onNavigate, currentPage, className = '', varian
           { icon: User, label: 'Account', page: 'account' },
           { icon: Settings, label: 'Settings', page: 'settings' },
         ] : []),
-        // Admin menu item removed
+        { icon: Settings, label: 'Admin Settings', page: 'admin-settings', isSpecial: true },
         { icon: Info, label: 'About', page: 'about' },
         { icon: DollarSign, label: 'Pricing', page: 'pricing' },
         { icon: Mail, label: 'Contact', page: 'contact' },

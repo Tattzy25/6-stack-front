@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Lock, Zap, Info } from 'lucide-react';
 import { useInk } from '../../contexts/InkContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { useModal } from '../../contexts/ModalContext';
 import {
   ModelType,
   MODEL_CONFIGS,
@@ -34,6 +36,8 @@ export function ModelPicker({
   className 
 }: ModelPickerProps) {
   const { tier } = useInk();
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const { openAuthModal, openUnlockModelModal, openLowBalanceModal } = useModal();
   const [showManual, setShowManual] = useState(selectedModel !== 'auto');
   
   const defaultModel = selectedModel === 'auto' 
@@ -51,6 +55,37 @@ export function ModelPicker({
       onModelChange(effectiveModel);
       setShowManual(true);
     }
+  };
+
+  const handleLockedSelection = (model: ModelType) => {
+    if (isAuthLoading) {
+      return;
+    }
+
+    if (!isAuthenticated) {
+      openAuthModal();
+      return;
+    }
+
+    const targetTier = model === 'turbo' ? 'studio' : 'creator';
+    const label = MODEL_CONFIGS[model].name;
+
+    openUnlockModelModal({
+      modelId: model,
+      modelLabel: label,
+      targetTier,
+      onBoost: () => {
+        console.log('Boost access for', model);
+        onModelChange(model);
+      },
+      onSubscribe: (tierChoice) => {
+        openLowBalanceModal({
+          requiredCredits: tierChoice === 'studio' ? 1200 : 400,
+          title: `Upgrade to ${tierChoice === 'studio' ? 'Studio' : 'Creator'}`,
+          description: 'Plans keep premium detail unlocked every day.',
+        });
+      },
+    });
   };
   
   return (
@@ -173,7 +208,8 @@ export function ModelPicker({
                 isAvailable={isAvailable}
                 isSelected={isSelected}
                 tier={tier}
-                onClick={() => isAvailable && onModelChange(model)}
+                onSelect={() => onModelChange(model)}
+                onUnlock={() => handleLockedSelection(model)}
               />
             );
           })}
@@ -193,22 +229,30 @@ interface ModelCardProps {
   isAvailable: boolean;
   isSelected: boolean;
   tier: string;
-  onClick: () => void;
+  onSelect: () => void;
+  onUnlock?: () => void;
 }
 
-function ModelCard({ model, config, isAvailable, isSelected, tier, onClick }: ModelCardProps) {
+function ModelCard({ model, config, isAvailable, isSelected, tier, onSelect, onUnlock }: ModelCardProps) {
   const getUpgradeTier = (): string => {
     if (model === 'turbo') return 'Studio';
     if (model === 'medium' || model === 'large') return 'Creator';
     return '';
   };
   
+  const handleClick = () => {
+    if (isAvailable) {
+      onSelect();
+    } else {
+      onUnlock?.();
+    }
+  };
+
   const card = (
     <button
-      onClick={onClick}
-      disabled={!isAvailable}
+      onClick={handleClick}
       className={cn(
-        'relative p-4 rounded-lg border backdrop-blur-sm',
+        'relative p-4 rounded-lg border backdrop-blur-sm cursor-pointer',
         'transition-all duration-200',
         'text-left',
         isSelected && 'ring-2 ring-[#57f1d6] ring-offset-2 ring-offset-[#0C0C0D]',
@@ -216,7 +260,7 @@ function ModelCard({ model, config, isAvailable, isSelected, tier, onClick }: Mo
           ? isSelected
             ? 'bg-[#57f1d6]/10 border-[#57f1d6]/30'
             : 'bg-white/5 border-white/10 hover:border-[#57f1d6]/20 hover:bg-white/10'
-          : 'bg-white/5 border-white/10 opacity-50 cursor-not-allowed'
+          : 'bg-white/5 border-white/10 opacity-80 hover:opacity-100'
       )}
     >
       {/* Lock Icon */}
@@ -240,13 +284,13 @@ function ModelCard({ model, config, isAvailable, isSelected, tier, onClick }: Mo
         {/* Description */}
         <p className="text-xs text-white/60">{config.description}</p>
         
-        {/* INK Cost */}
+        {/* Credits Cost */}
         <div className="flex items-center justify-between pt-1">
           <span className={cn(
             'text-sm font-mono',
             isSelected ? 'text-[#57f1d6]' : 'text-white/80'
           )}>
-            {config.baseInkCost} INK
+            {config.baseInkCost} credits
           </span>
           
           {/* Time Estimate */}
@@ -257,9 +301,14 @@ function ModelCard({ model, config, isAvailable, isSelected, tier, onClick }: Mo
         
         {/* Upgrade Prompt for Locked Models */}
         {!isAvailable && (
-          <p className="text-xs text-white/50 pt-1 border-t border-white/10">
-            Unlock with {getUpgradeTier()}
-          </p>
+          <>
+            <p className="text-xs text-white/50 pt-1 border-t border-white/10">
+              Unlock with {getUpgradeTier()}
+            </p>
+            <p className="text-[11px] uppercase tracking-[0.2em] text-[#57f1d6]/80">
+              Tap to see options
+            </p>
+          </>
         )}
       </div>
     </button>
@@ -278,8 +327,8 @@ function ModelCard({ model, config, isAvailable, isSelected, tier, onClick }: Mo
             className="bg-[#0C0C0D]/95 backdrop-blur-xl border border-[#57f1d6]/20 p-3"
           >
             <p className="text-xs text-white/80">
-              Unlock {config.name} model with {getUpgradeTier()}. 
-              ${getUpgradeTier() === 'Studio' ? '29' : '12'}/mo — includes {getUpgradeTier() === 'Studio' ? '1200' : '400'} INK/month.
+              Unlock {config.name} with {getUpgradeTier()} — ${getUpgradeTier() === 'Studio' ? '29' : '12'}/mo includes
+              {' '}{getUpgradeTier() === 'Studio' ? '1200' : '400'} credits monthly.
             </p>
           </TooltipContent>
         </Tooltip>

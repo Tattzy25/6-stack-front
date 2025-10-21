@@ -1,0 +1,621 @@
+[{
+  "table_schema": "public",
+  "table_name": "abstract_concepts",
+  "column_name": "id",
+  "data_type": "uuid"
+}, {
+  "table_schema": "public",
+  "table_name": "abstract_concepts",
+  "column_name": "concept",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "abstract_concepts",
+  "column_name": "motif",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "api_models",
+  "column_name": "id",
+  "data_type": "uuid"
+}, {
+  "table_schema": "public",
+  "table_name": "api_models",
+  "column_name": "name",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "api_models",
+  "column_name": "description",
+  "data_type": "text"
+}, {
+  "table_schema": "public",
+  "table_name": "api_models",
+  "column_name": "token_cost",
+  "data_type": "numeric"
+}, {
+  "table_schema": "public",
+  "table_name": "cultural_hidden_meanings",
+  "column_name": "id",
+  "data_type": "uuid"
+}, {
+  "table_schema": "public",
+  "table_name": "cultural_hidden_meanings",
+  "column_name": "motif",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "cultural_hidden_meanings",
+  "column_name": "culture",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "cultural_identity",
+  "column_name": "id",
+  "data_type": "uuid"
+}, {
+  "table_schema": "public",
+  "table_name": "cultural_identity",
+  "column_name": "theme",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "cultural_identity",
+  "column_name": "symbolic_marker",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "cultural_identity",
+  "column_name": "purpose",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "example_images",
+  "column_name": "id",
+  "data_type": "uuid"
+}, {
+  "table_schema": "public",
+  "table_name": "example_images",
+  "column_name": "title",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "example_images",
+  "column_name": "description",
+  "data_type": "text"
+}, {
+  "table_schema": "public",
+  "table_name": "example_images",
+  "column_name": "image_url",
+  "data_type": "text"
+}, {
+  "table_schema": "public",
+  "table_name": "example_images",
+  "column_name": "thumbnail_url",
+  "data_type": "text"
+}, {
+  "table_schema": "public",
+  "table_name": "example_images",
+  "column_name": "category",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "example_images",
+  "column_name": "style",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "example_images",
+  "column_name": "tags",
+  "data_type": "ARRAY"
+}, {
+  "table_schema": "public",
+  "table_name": "example_images",
+  "column_name": "is_featured",
+  "data_type": "boolean"
+}, {
+  "table_schema": "public",
+  "table_name": "example_images",
+  "column_name": "is_active",
+  "data_type": "boolean"
+}, {
+  "table_schema": "public",
+  "table_name": "example_images",
+  "column_name": "display_order",
+  "data_type": "integer"
+}, {
+  "table_schema": "public",
+  "table_name": "example_images",
+  "column_name": "view_count",
+  "data_type": "integer"
+}, {
+  "table_schema": "public",
+  "table_name": "example_images",
+  "column_name": "created_at",
+  "data_type": "timestamp with time zone"
+}, {
+  "table_schema": "public",
+  "table_name": "example_images",
+  "column_name": "updated_at",
+  "data_type": "timestamp with time zone"
+}, {
+  "table_schema": "public",
+  "table_name": "image_actions",
+  "column_name": "id",
+  "data_type": "integer"
+}, {
+  "table_schema": "public",
+  "table_name": "image_actions",
+  "column_name": "user_id",
+  "data_type": "uuid"
+}, {
+  "table_schema": "public",
+  "table_name": "image_actions",
+  "column_name": "image_id",
+  "data_type": "uuid"
+}, {
+  "table_schema": "public",
+  "table_name": "image_actions",
+  "column_name": "action_type",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "image_actions",
+  "column_name": "created_at",
+  "data_type": "timestamp with time zone"
+}, {
+  "table_schema": "public",
+  "table_name": "images",
+  "column_name": "id",
+  "data_type": "integer"
+}, {
+  "table_schema": "public",
+  "table_name": "images",
+  "column_name": "url",
+  "data_type": "text"
+}, {
+  "table_schema": "public",
+  "table_name": "images",
+  "column_name": "description",
+  "data_type": "text"
+}, {
+  "table_schema": "public",
+  "table_name": "images",
+  "column_name": "created_at",
+  "data_type": "timestamp with time zone"
+}, {
+  "table_schema": "public",
+  "table_name": "nature_elements",
+  "column_name": "id",
+  "data_type": "uuid"
+}, {
+  "table_schema": "public",
+  "table_name": "nature_elements",
+  "column_name": "element",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "nature_elements",
+  "column_name": "symbolic_meaning",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "nature_elements",
+  "column_name": "cultural_association",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "obscure_spiritual",
+  "column_name": "id",
+  "data_type": "uuid"
+}, {
+  "table_schema": "public",
+  "table_name": "obscure_spiritual",
+  "column_name": "symbol",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "obscure_spiritual",
+  "column_name": "tradition",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "otp_codes",
+  "column_name": "id",
+  "data_type": "uuid"
+}, {
+  "table_schema": "public",
+  "table_name": "otp_codes",
+  "column_name": "email",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "otp_codes",
+  "column_name": "code",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "otp_codes",
+  "column_name": "expires_at",
+  "data_type": "timestamp with time zone"
+}, {
+  "table_schema": "public",
+  "table_name": "otp_codes",
+  "column_name": "used",
+  "data_type": "boolean"
+}, {
+  "table_schema": "public",
+  "table_name": "otp_codes",
+  "column_name": "created_at",
+  "data_type": "timestamp with time zone"
+}, {
+  "table_schema": "public",
+  "table_name": "payments",
+  "column_name": "id",
+  "data_type": "uuid"
+}, {
+  "table_schema": "public",
+  "table_name": "payments",
+  "column_name": "user_id",
+  "data_type": "uuid"
+}, {
+  "table_schema": "public",
+  "table_name": "payments",
+  "column_name": "amount",
+  "data_type": "numeric"
+}, {
+  "table_schema": "public",
+  "table_name": "payments",
+  "column_name": "payment_method",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "payments",
+  "column_name": "status",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "payments",
+  "column_name": "tokens_spent",
+  "data_type": "integer"
+}, {
+  "table_schema": "public",
+  "table_name": "payments",
+  "column_name": "created_at",
+  "data_type": "timestamp with time zone"
+}, {
+  "table_schema": "public",
+  "table_name": "protection_symbols",
+  "column_name": "id",
+  "data_type": "uuid"
+}, {
+  "table_schema": "public",
+  "table_name": "protection_symbols",
+  "column_name": "name",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "protection_symbols",
+  "column_name": "origin",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "protection_symbols",
+  "column_name": "symbol_type",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "rare_motifs",
+  "column_name": "id",
+  "data_type": "uuid"
+}, {
+  "table_schema": "public",
+  "table_name": "rare_motifs",
+  "column_name": "motif",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "rare_motifs",
+  "column_name": "culture",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "regional_themes",
+  "column_name": "id",
+  "data_type": "uuid"
+}, {
+  "table_schema": "public",
+  "table_name": "regional_themes",
+  "column_name": "region",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "regional_themes",
+  "column_name": "examples",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "sessions",
+  "column_name": "id",
+  "data_type": "uuid"
+}, {
+  "table_schema": "public",
+  "table_name": "sessions",
+  "column_name": "user_id",
+  "data_type": "uuid"
+}, {
+  "table_schema": "public",
+  "table_name": "sessions",
+  "column_name": "session_token",
+  "data_type": "text"
+}, {
+  "table_schema": "public",
+  "table_name": "sessions",
+  "column_name": "created_at",
+  "data_type": "timestamp with time zone"
+}, {
+  "table_schema": "public",
+  "table_name": "sessions",
+  "column_name": "expires_at",
+  "data_type": "timestamp with time zone"
+}, {
+  "table_schema": "public",
+  "table_name": "tattoo_colors",
+  "column_name": "id",
+  "data_type": "uuid"
+}, {
+  "table_schema": "public",
+  "table_name": "tattoo_colors",
+  "column_name": "color_name",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "tattoo_colors",
+  "column_name": "color_hex",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "tattoo_moods",
+  "column_name": "id",
+  "data_type": "uuid"
+}, {
+  "table_schema": "public",
+  "table_name": "tattoo_moods",
+  "column_name": "mood_name",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "tattoo_moods",
+  "column_name": "description",
+  "data_type": "text"
+}, {
+  "table_schema": "public",
+  "table_name": "tattoo_moods",
+  "column_name": "created_at",
+  "data_type": "timestamp with time zone"
+}, {
+  "table_schema": "public",
+  "table_name": "tattoo_moods",
+  "column_name": "updated_at",
+  "data_type": "timestamp with time zone"
+}, {
+  "table_schema": "public",
+  "table_name": "tattoo_placements",
+  "column_name": "id",
+  "data_type": "uuid"
+}, {
+  "table_schema": "public",
+  "table_name": "tattoo_placements",
+  "column_name": "placement",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "tattoo_sizes",
+  "column_name": "id",
+  "data_type": "uuid"
+}, {
+  "table_schema": "public",
+  "table_name": "tattoo_sizes",
+  "column_name": "size_description",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "tattoo_styles",
+  "column_name": "id",
+  "data_type": "uuid"
+}, {
+  "table_schema": "public",
+  "table_name": "tattoo_styles",
+  "column_name": "style_name",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "tattoo_styles",
+  "column_name": "description",
+  "data_type": "text"
+}, {
+  "table_schema": "public",
+  "table_name": "tattoo_styles",
+  "column_name": "parent_style_id",
+  "data_type": "uuid"
+}, {
+  "table_schema": "public",
+  "table_name": "tattoo_styles",
+  "column_name": "created_at",
+  "data_type": "timestamp with time zone"
+}, {
+  "table_schema": "public",
+  "table_name": "tattoo_styles",
+  "column_name": "updated_at",
+  "data_type": "timestamp with time zone"
+}, {
+  "table_schema": "public",
+  "table_name": "tattoos",
+  "column_name": "id",
+  "data_type": "uuid"
+}, {
+  "table_schema": "public",
+  "table_name": "tattoos",
+  "column_name": "title",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "tattoos",
+  "column_name": "description",
+  "data_type": "text"
+}, {
+  "table_schema": "public",
+  "table_name": "tattoos",
+  "column_name": "style_id",
+  "data_type": "uuid"
+}, {
+  "table_schema": "public",
+  "table_name": "tattoos",
+  "column_name": "size_id",
+  "data_type": "uuid"
+}, {
+  "table_schema": "public",
+  "table_name": "tattoos",
+  "column_name": "color_id",
+  "data_type": "uuid"
+}, {
+  "table_schema": "public",
+  "table_name": "tattoos",
+  "column_name": "placement_id",
+  "data_type": "uuid"
+}, {
+  "table_schema": "public",
+  "table_name": "tattoos",
+  "column_name": "mood_id",
+  "data_type": "uuid"
+}, {
+  "table_schema": "public",
+  "table_name": "tattoos",
+  "column_name": "created_at",
+  "data_type": "timestamp with time zone"
+}, {
+  "table_schema": "public",
+  "table_name": "tattoos",
+  "column_name": "updated_at",
+  "data_type": "timestamp with time zone"
+}, {
+  "table_schema": "public",
+  "table_name": "underground_subversive",
+  "column_name": "id",
+  "data_type": "uuid"
+}, {
+  "table_schema": "public",
+  "table_name": "underground_subversive",
+  "column_name": "theme",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "underground_subversive",
+  "column_name": "symbol",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "user_profiles",
+  "column_name": "user_id",
+  "data_type": "uuid"
+}, {
+  "table_schema": "public",
+  "table_name": "user_profiles",
+  "column_name": "bio",
+  "data_type": "text"
+}, {
+  "table_schema": "public",
+  "table_name": "user_profiles",
+  "column_name": "location",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "user_profiles",
+  "column_name": "website",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "user_profiles",
+  "column_name": "social_links",
+  "data_type": "jsonb"
+}, {
+  "table_schema": "public",
+  "table_name": "user_profiles",
+  "column_name": "preferences",
+  "data_type": "jsonb"
+}, {
+  "table_schema": "public",
+  "table_name": "user_profiles",
+  "column_name": "created_at",
+  "data_type": "timestamp with time zone"
+}, {
+  "table_schema": "public",
+  "table_name": "user_profiles",
+  "column_name": "updated_at",
+  "data_type": "timestamp with time zone"
+}, {
+  "table_schema": "public",
+  "table_name": "user_tokens",
+  "column_name": "user_id",
+  "data_type": "uuid"
+}, {
+  "table_schema": "public",
+  "table_name": "user_tokens",
+  "column_name": "tokens_balance",
+  "data_type": "integer"
+}, {
+  "table_schema": "public",
+  "table_name": "user_tokens",
+  "column_name": "last_updated",
+  "data_type": "timestamp with time zone"
+}, {
+  "table_schema": "public",
+  "table_name": "users",
+  "column_name": "id",
+  "data_type": "uuid"
+}, {
+  "table_schema": "public",
+  "table_name": "users",
+  "column_name": "email",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "users",
+  "column_name": "name",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "users",
+  "column_name": "profile_image",
+  "data_type": "text"
+}, {
+  "table_schema": "public",
+  "table_name": "users",
+  "column_name": "created_at",
+  "data_type": "timestamp with time zone"
+}, {
+  "table_schema": "public",
+  "table_name": "users",
+  "column_name": "username",
+  "data_type": "character varying"
+}, {
+  "table_schema": "public",
+  "table_name": "users",
+  "column_name": "avatar_url",
+  "data_type": "text"
+}, {
+  "table_schema": "public",
+  "table_name": "users",
+  "column_name": "role",
+  "data_type": "USER-DEFINED"
+}, {
+  "table_schema": "public",
+  "table_name": "users",
+  "column_name": "tokens",
+  "data_type": "integer"
+}, {
+  "table_schema": "public",
+  "table_name": "users",
+  "column_name": "total_spent",
+  "data_type": "numeric"
+}]

@@ -87,54 +87,46 @@ export async function verifyOTP(req: Request, res: Response): Promise<void> {
 
     // Get or create user
     let user = await sql`
-      SELECT * FROM users WHERE email = ${email}
+      SELECT *
+      FROM users
+      WHERE email = ${email}
     `.then(r => r[0]);
 
     if (!user) {
       const newUsers = await sql`
-        INSERT INTO users (email, email_verified, provider, role)
-        VALUES (${email}, true, 'email', 'user')
+        INSERT INTO users (email, tokens)
+        VALUES (${email}, 100)
         RETURNING *
       `;
       user = newUsers[0];
 
-      // Create user profile
       await sql`
-        INSERT INTO user_profiles (user_id)
-        VALUES (${user.id})
+        INSERT INTO user_profiles (user_id, created_at, updated_at)
+        VALUES (${user.id}, NOW(), NOW())
         ON CONFLICT (user_id) DO NOTHING
       `;
 
-      // Send welcome email
       emailService.sendWelcomeEmail(email, user.name).catch(err =>
         logger.error({ err }, 'Failed to send welcome email')
       );
 
       logger.info({ email }, 'New user signup');
+    } else if (user.tokens === null) {
+      const updatedUser = await sql`
+        UPDATE users
+        SET tokens = 100
+        WHERE id = ${user.id}
+        RETURNING *
+      `;
+      user = asRows(updatedUser)[0] ?? user;
     }
-
-    // Update last login and increment login count
-    const updatedUser = await sql`
-      UPDATE users
-      SET last_login_at = NOW(),
-          login_count = login_count + 1
-      WHERE id = ${user.id}
-      RETURNING *
-    `;
-    user = asRows(updatedUser)[0] ?? user;
 
     const sessionToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
 
     await sql`
-      INSERT INTO sessions (user_id, token, expires_at, ip_address, user_agent)
-      VALUES (
-        ${user.id},
-        ${sessionToken},
-        ${expiresAt},
-        ${req.ip || null},
-        ${req.headers['user-agent'] || null}
-      )
+      INSERT INTO sessions (user_id, session_token, expires_at)
+      VALUES (${user.id}, ${sessionToken}, ${expiresAt})
     `;
 
     res.cookie('session_token', sessionToken, {
@@ -154,6 +146,7 @@ export async function verifyOTP(req: Request, res: Response): Promise<void> {
         name: user.name,
         avatar: user.avatar_url,
         role: user.role,
+        tokens: user.tokens,
         isAdmin: user.role === 'admin',
       },
     });

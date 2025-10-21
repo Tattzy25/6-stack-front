@@ -1,4 +1,4 @@
-import { Droplet, Zap, Package, CreditCard, X } from 'lucide-react';
+import { Droplet, Zap, Package, CreditCard } from 'lucide-react';
 import { useInk } from '../../contexts/InkContext';
 import {
   TOKEN_PACKS,
@@ -20,20 +20,33 @@ interface LowBalanceModalProps {
   isOpen: boolean;
   onClose: () => void;
   requiredInk?: number;
+  requiredCredits?: number;
   onPurchase?: (packId: string) => void;
   onSubscribe?: (tier: SubscriptionTier) => void;
+  title?: string;
+  description?: string;
 }
 
 export function LowBalanceModal({
   isOpen,
   onClose,
   requiredInk,
+  requiredCredits,
   onPurchase,
   onSubscribe,
+  title,
+  description,
 }: LowBalanceModalProps) {
   const { balance, tier } = useInk();
   
-  const shortfall = requiredInk ? Math.max(0, requiredInk - balance) : 0;
+  const needed = typeof requiredCredits === 'number' ? requiredCredits : requiredInk;
+  const shortfall = typeof needed === 'number' ? Math.max(0, needed - balance) : 0;
+  const heading = title ?? 'Need more INK?';
+  const helperText =
+    description ??
+    (shortfall > 0
+      ? `You’re ${shortfall} credits short. Pick the option that fits this project.`
+      : 'Top up your credits whenever you’re ready to keep creating.');
   
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -41,15 +54,9 @@ export function LowBalanceModal({
         <DialogHeader>
           <DialogTitle className="text-2xl text-white flex items-center gap-3">
             <Droplet className="w-6 h-6 text-[#57f1d6]" fill="#57f1d6" />
-            Need more INK?
+            {heading}
           </DialogTitle>
-          <DialogDescription className="text-white/60">
-            {shortfall > 0 ? (
-              <>You need {shortfall} more INK to continue. Choose an option below:</>
-            ) : (
-              <>Choose how you'd like to get more INK:</>
-            )}
-          </DialogDescription>
+          <DialogDescription className="text-white/60">{helperText}</DialogDescription>
         </DialogHeader>
         
         <div className="space-y-6 mt-4">
@@ -67,7 +74,7 @@ export function LowBalanceModal({
               <div className="flex items-center justify-between">
                 <div className="text-left">
                   <p className="font-medium text-lg">{SESSION_BOOSTER.name}</p>
-                  <p className="text-sm opacity-80">{SESSION_BOOSTER.ink} INK for just ${SESSION_BOOSTER.priceUsd}</p>
+                  <p className="text-sm opacity-80">{SESSION_BOOSTER.ink} credits for ${SESSION_BOOSTER.priceUsd}</p>
                 </div>
                 <div className="text-right">
                   <p className="font-mono text-2xl">${SESSION_BOOSTER.priceUsd}</p>
@@ -82,7 +89,7 @@ export function LowBalanceModal({
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <CreditCard className="w-4 h-4 text-[#57f1d6]" />
-                <h3 className="text-sm text-white/80">Subscribe for cheaper INK</h3>
+                <h3 className="text-sm text-white/80">Upgrade for better value</h3>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -118,7 +125,7 @@ export function LowBalanceModal({
             </div>
             
             <p className="text-xs text-white/40 text-center">
-              Packs expire in 6 months. Subscribe within 24h and get 50% of pack spend credited to your first month.
+              Packs last 6 months. Upgrade within 24 hours and we'll credit half of this purchase toward your first month.
             </p>
           </div>
         </div>
@@ -169,9 +176,9 @@ function SubscriptionCard({ tier, onSelect, featured }: SubscriptionCardProps) {
         </div>
         
         <div className="space-y-1 text-xs text-white/60">
-          <p>✓ {features.monthlyInk} INK/month</p>
+          <p>✓ {features.monthlyInk} credits each month</p>
           <p>✓ {features.models.length} models unlocked</p>
-          <p>✓ ${perInkCost} per INK</p>
+          <p>✓ ${perInkCost} per credit</p>
         </div>
       </div>
     </button>
@@ -209,13 +216,13 @@ function PackCard({ pack, onSelect, recommended }: PackCardProps) {
         <div>
           <h4 className="text-white text-sm">{pack.name}</h4>
           <p className="text-lg font-mono text-[#57f1d6] mt-0.5">
-            {pack.ink} INK
+            {pack.ink} credits
           </p>
         </div>
         
         <div className="flex items-center justify-between text-xs">
           <span className="text-white/60">${pack.priceUsd}</span>
-          <span className="text-white/40">${pack.perInkCost.toFixed(3)}/INK</span>
+          <span className="text-white/40">${pack.perInkCost.toFixed(3)}/credit</span>
         </div>
       </div>
     </button>

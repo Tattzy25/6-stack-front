@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import React, { ReactNode } from 'react';
 
 interface FrostCardProps {
   image: string;
@@ -57,8 +57,13 @@ interface FrostCardGridProps {
 
 export function FrostCardGrid({ children }: FrostCardGridProps) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {children}
+    <div className="flex flex-wrap justify-center gap-6">
+      {/* Wrap each child to control width for 3/2 layout */}
+      {React.Children.map(children, (child, idx) => (
+        <div key={idx} className="w-full sm:w-1/2 lg:w-1/3">
+          {child}
+        </div>
+      ))}
     </div>
   );
 }

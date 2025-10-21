@@ -35,7 +35,8 @@ export const InkCostButton = forwardRef<HTMLButtonElement, InkCostButtonProps>(
     
     const numericCost = inkCost === 'free' ? 0 : inkCost;
     const canUserAfford = canAfford(numericCost);
-    const isDisabled = disabled || isLocked || !canUserAfford || isLoading;
+    const isVisuallyDisabled = isLocked || !canUserAfford;
+    const isActuallyDisabled = disabled || isLoading;
     
     // Determine button styling based on variant and state
     const variantClasses = {
@@ -44,7 +45,7 @@ export const InkCostButton = forwardRef<HTMLButtonElement, InkCostButtonProps>(
       danger: 'bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30',
     };
     
-    const disabledClasses = isDisabled
+    const disabledClasses = isActuallyDisabled
       ? 'opacity-50 cursor-not-allowed hover:bg-opacity-100'
       : '';
     
@@ -53,11 +54,13 @@ export const InkCostButton = forwardRef<HTMLButtonElement, InkCostButtonProps>(
     return (
       <button
         ref={ref}
-        disabled={isDisabled}
+        disabled={isActuallyDisabled}
+        aria-disabled={isVisuallyDisabled}
         className={cn(
           'relative flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg',
-          'transition-all duration-200',
+          'transition-all duration-200 cursor-pointer',
           variantClasses[variant],
+          isVisuallyDisabled && !isActuallyDisabled && 'opacity-60',
           disabledClasses,
           'group',
           className
@@ -87,7 +90,7 @@ export const InkCostButton = forwardRef<HTMLButtonElement, InkCostButtonProps>(
                 {showInkIcon && (
                   <Droplet className="w-3.5 h-3.5" fill="currentColor" />
                 )}
-                <span className="text-xs opacity-80">{inkCost} INK</span>
+                <span className="text-xs opacity-80">{inkCost} credits</span>
               </>
             )}
           </span>

@@ -1,28 +1,13 @@
 import { useState, useEffect } from 'react';
 import { 
   Sparkles, 
-  Wand2, 
-  Heart, 
-  RefreshCw, 
-  Plus, 
-  Zap,
-  Smile,
-  Moon,
-  Waves,
-  HeartHandshake,
-  Sparkle,
-  Flame,
-  Minus,
-  RefreshIcon,
   Search
 } from 'lucide-react';
-import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { Input } from './ui/input';
 import { 
   MoodSelector,
-  SkintonePicker,
-  type Mood,
+  SkintonePicker
 } from './generator/sections';
 import { moods } from './generator/mood/moodData';
 import { GeneratorCarouselPanel } from './generator/GeneratorCarouselPanel';
@@ -36,10 +21,7 @@ import { UploadCard } from './UploadCard';
 import { FreestyleCard } from './shared/FreestyleCard';
 import { AuthModal } from './shared/AuthModal';
 import { 
-  getFreestyleInput, 
-  clearFreestyleInput, 
   base64ToFile,
-  saveGeneratorState,
   getGeneratorState,
   clearGeneratorState 
 } from '../utils/inputPersistence';
@@ -47,7 +29,7 @@ import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { useGenerator } from '../contexts/GeneratorContext';
 import { SelectionChip } from './shared/SelectionChip';
-import { ModelSelectPanel } from './shared/model-select';
+import { ModernModelSelectPanel } from './shared/model-select/ModernModelSelectPanel';
 import type { ModelType } from '../types/economy';
 import { env } from '../utils/env';
 
@@ -83,38 +65,34 @@ export function GeneratorPage({ onNavigate }: GeneratorPageProps) {
   const [moodSearchQuery, setMoodSearchQuery] = useState('');
   const [selectedModel, setSelectedModel] = useState<ModelType | 'auto'>('auto');
   
-  // Sync local state with generator context
+  // Sync local state with generator context (consolidated to prevent circular updates)
   useEffect(() => {
-    generator.updateGeneratorType(selectedGenerator);
-  }, [selectedGenerator]);
-  
-  useEffect(() => {
-    generator.updateStyle(selectedStyle);
-  }, [selectedStyle]);
-  
-  useEffect(() => {
-    generator.updatePlacement(selectedPlacement);
-  }, [selectedPlacement]);
-  
-  useEffect(() => {
-    generator.updateSize(selectedSize);
-  }, [selectedSize]);
-  
-  useEffect(() => {
-    generator.updateColor(selectedColorPreference);
-  }, [selectedColorPreference]);
-  
-  useEffect(() => {
-    generator.updateMood(selectedMood);
-  }, [selectedMood]);
-  
-  useEffect(() => {
-    generator.updateSkintone(selectedSkintone);
-  }, [selectedSkintone]);
-  
-  useEffect(() => {
-    generator.updateOutputType(outputType);
-  }, [outputType]);
+    // Only update context if values have actually changed
+    if (generator.selections.generatorType !== selectedGenerator) {
+      generator.updateGeneratorType(selectedGenerator);
+    }
+    if (generator.selections.style !== selectedStyle) {
+      generator.updateStyle(selectedStyle);
+    }
+    if (generator.selections.placement !== selectedPlacement) {
+      generator.updatePlacement(selectedPlacement);
+    }
+    if (generator.selections.size !== selectedSize) {
+      generator.updateSize(selectedSize);
+    }
+    if (generator.selections.color !== selectedColorPreference) {
+      generator.updateColor(selectedColorPreference);
+    }
+    if (generator.selections.mood !== selectedMood) {
+      generator.updateMood(selectedMood);
+    }
+    if (generator.selections.skintone !== selectedSkintone) {
+      generator.updateSkintone(selectedSkintone);
+    }
+    if (generator.selections.outputType !== outputType) {
+      generator.updateOutputType(outputType);
+    }
+  }, [selectedGenerator, selectedStyle, selectedPlacement, selectedSize, selectedColorPreference, selectedMood, selectedSkintone, outputType, generator]);
 
   // Restore saved generator state on mount (for users redirected from auth)
   useEffect(() => {
@@ -145,9 +123,14 @@ export function GeneratorPage({ onNavigate }: GeneratorPageProps) {
         description: 'All your selections have been restored'
       });
       
-      // Trigger generation
+      // Set a flag to trigger generation after state is restored
       setTimeout(() => {
-        handleGenerate();
+        // Only trigger if we have a valid prompt
+        if (savedState.freestylePrompt?.trim()) {
+          setGenerated(false);
+          setGenerating(true);
+          // The actual generation will be handled by the generate button click
+        }
       }, 500);
     }
   }, [isAuthenticated]);
@@ -462,7 +445,7 @@ export function GeneratorPage({ onNavigate }: GeneratorPageProps) {
 
             {/* Model Select Panel */}
             <div className="pt-6 md:pt-8">
-              <ModelSelectPanel
+              <ModernModelSelectPanel
                 selectedModel={selectedModel}
                 onSelect={setSelectedModel}
               />
@@ -498,6 +481,7 @@ export function GeneratorPage({ onNavigate }: GeneratorPageProps) {
             freestyleInitialText={freestylePrompt}
             freestyleInitialImages={freestyleImages}
           >
+            {/* Additional sidebar content can be added here */}
           </GeneratorSidebar>
         </div>
       </div>

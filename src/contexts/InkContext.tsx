@@ -17,6 +17,7 @@ import {
   TIER_FEATURES,
   EDIT_ACTION_CONFIGS,
 } from '../types/economy';
+import { env } from '../utils/env';
 
 // ============================================================================
 // TYPES
@@ -98,6 +99,7 @@ interface InkProviderProps {
 
 export function InkProvider({ children }: InkProviderProps) {
   const { user, isAuthenticated } = useAuth();
+  const apiBase = (env.apiUrl || '/api').replace(/\/$/, '');
   
   const [balance, setBalance] = useState<number>(0);
   const [tier, setTier] = useState<SubscriptionTier>('free');
@@ -122,7 +124,9 @@ export function InkProvider({ children }: InkProviderProps) {
     
     try {
       // TODO: Replace with actual API call to Neon database
-      const response = await fetch(`/api/ink/balance?userId=${user.id}`);
+      const response = await fetch(`${apiBase}/ink/balance?userId=${user.id}`, {
+        credentials: 'include',
+      });
       
       if (!response.ok) {
         throw new Error('Failed to fetch balance');
@@ -195,9 +199,10 @@ export function InkProvider({ children }: InkProviderProps) {
       
       try {
         // TODO: Replace with actual API call to Neon database
-        const response = await fetch('/api/ink/deduct', {
+        const response = await fetch(`${apiBase}/ink/deduct`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({
             userId: user.id,
             amount: params.amount,

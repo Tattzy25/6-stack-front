@@ -19,13 +19,6 @@ export async function checkSession(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // Update last accessed time
-    await sql`
-      UPDATE sessions
-      SET last_accessed = NOW()
-      WHERE token = ${sessionToken}
-    `;
-
     res.json({
       success: true,
       user: {
@@ -50,7 +43,7 @@ export async function signOut(req: Request, res: Response): Promise<void> {
 
     if (sessionToken) {
       await sql`
-        DELETE FROM sessions WHERE token = ${sessionToken}
+        DELETE FROM sessions WHERE session_token = ${sessionToken}
       `;
       logger.info('User signed out');
     }
@@ -112,79 +105,37 @@ export async function googleOAuthCallback(req: Request, res: Response): Promise<
     const googleUser = await userInfoResponse.json();
 
     // Get or create user in database
-    const providerResult = await sql`
-      SELECT * FROM users
-      WHERE provider = 'google'
-      AND provider_id = ${googleUser.id}
-    `;
-    let user = asRows(providerResult)[0];
+    let user = await sql`
+      SELECT *
+      FROM users
+      WHERE email = ${googleUser.email}
+    `.then(rows => rows[0]);
 
     if (!user) {
-      // Check if email already exists
-      const emailResult = await sql`
-        SELECT * FROM users WHERE email = ${googleUser.email}
+      const createdUsers = await sql`
+        INSERT INTO users (email, name, avatar_url, tokens)
+        VALUES (${googleUser.email}, ${googleUser.name}, ${googleUser.picture}, 100)
+        RETURNING *
       `;
-      user = asRows(emailResult)[0];
+      user = asRows(createdUsers)[0];
 
-      if (user) {
-        // Update existing user with Google OAuth
-        const updatedGoogleUser = await sql`
-          UPDATE users
-          SET provider = 'google',
-              provider_id = ${googleUser.id},
-              name = ${googleUser.name || user.name},
-              avatar_url = ${googleUser.picture || user.avatar_url},
-              email_verified = true,
-              last_login_at = NOW(),
-              login_count = login_count + 1
-          WHERE id = ${user.id}
-          RETURNING *
-        `;
-        user = asRows(updatedGoogleUser)[0];
-      } else {
-        // Create new user
-        const newUsers = await sql`
-          INSERT INTO users (
-            email,
-            name,
-            avatar_url,
-            email_verified,
-            provider,
-            provider_id,
-            role
-          )
-          VALUES (
-            ${googleUser.email},
-            ${googleUser.name},
-            ${googleUser.picture},
-            true,
-            'google',
-            ${googleUser.id},
-            'user'
-          )
-          RETURNING *
-        `;
-        user = asRows(newUsers)[0];
+      await sql`
+        INSERT INTO user_profiles (user_id, created_at, updated_at)
+        VALUES (${user.id}, NOW(), NOW())
+        ON CONFLICT (user_id) DO NOTHING
+      `;
 
-        // Create user profile
-        await sql`
-          INSERT INTO user_profiles (user_id)
-          VALUES (${user.id})
-          ON CONFLICT (user_id) DO NOTHING
-        `;
-
-        logger.info({ email: googleUser.email }, 'New Google user created');
-      }
+      logger.info({ email: googleUser.email }, 'New Google user created');
     } else {
-      // Update last login
-      const updatedExistingUser = await sql`
+      const updatedUsers = await sql`
         UPDATE users
-        SET last_login_at = NOW(),
-            login_count = login_count + 1
+        SET
+          name = COALESCE(${googleUser.name}, users.name),
+          avatar_url = COALESCE(${googleUser.picture}, users.avatar_url)
         WHERE id = ${user.id}
         RETURNING *
       `;
-      user = asRows(updatedExistingUser)[0];
+      user = asRows(updatedUsers)[0] ?? user;
     }
 
     // Create session
@@ -192,14 +143,8 @@ export async function googleOAuthCallback(req: Request, res: Response): Promise<
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
 
     await sql`
-      INSERT INTO sessions (user_id, token, expires_at, ip_address, user_agent)
-      VALUES (
-        ${user.id},
-        ${sessionToken},
-        ${expiresAt},
-        ${req.ip || null},
-        ${req.headers['user-agent'] || null}
-      )
+      INSERT INTO sessions (user_id, session_token, expires_at)
+      VALUES (${user.id}, ${sessionToken}, ${expiresAt})
     `;
 
     // Set session cookie

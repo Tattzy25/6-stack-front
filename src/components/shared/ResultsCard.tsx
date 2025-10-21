@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Card, CardContent } from '../ui/card';
-import { Download, Heart, Share2, Bookmark, Users, Sparkles, Wand2, Image as ImageIcon, Shuffle, Edit3, Droplet } from 'lucide-react';
+import { Download, Heart, Share2, Bookmark, Users, Sparkles, Wand2, Image as ImageIcon, Shuffle, Edit3, Droplet, ArrowUp, Sun } from 'lucide-react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import {
   Tooltip,
@@ -46,6 +46,10 @@ interface ResultsCardProps {
   onOutpaint?: () => void;
   onVariations?: () => void;
   onOpenEditor?: () => void;
+  onUpscale2x?: () => void;
+  onUpscale4x?: () => void;
+  onRemoveBackground?: () => void;
+  onReplaceBackground?: () => void;
 }
 
 export function ResultsCard({ 
@@ -72,21 +76,35 @@ export function ResultsCard({
   onOutpaint,
   onVariations,
   onOpenEditor,
+  onUpscale2x,
+  onUpscale4x,
+  onRemoveBackground,
+  onReplaceBackground,
 }: ResultsCardProps) {
   const [activeTab, setActiveTab] = useState<'adjust' | 'retouch' | 'background' | 'variations' | null>(null);
   const hasGenerated = designs.length > 0 && !isGenerating;
   const generatedImage = designs[0]; // Only use the first image
 
   // INK costs and time estimates for edit actions
-  const { getEditCost, getGenerationCost, tier } = useInk();
+  const { getEditCost, getGenerationCost, tier, getUpscaleCost } = useInk();
   const eraseCost = getEditCost('erase');
   const inpaintCost = getEditCost('inpaint');
   const outpaintCost = getEditCost('outpaint');
+  const relightCost = getEditCost('relight');
+  const removeBackgroundCost = getEditCost('remove-background');
+  const replaceBackgroundCost = getEditCost('replace-background');
+  const upscale2xCost = getUpscaleCost('2x');
+  const upscale4xCost = getUpscaleCost('4x');
   const defaultModel = getDefaultModelForTier(tier);
   const variationsCost = getGenerationCost(defaultModel) * 3;
   const eraseTime = `${EDIT_ACTION_CONFIGS.erase.estimatedTimeSeconds[0]}-${EDIT_ACTION_CONFIGS.erase.estimatedTimeSeconds[1]}s`;
   const inpaintTime = `${EDIT_ACTION_CONFIGS.inpaint.estimatedTimeSeconds[0]}-${EDIT_ACTION_CONFIGS.inpaint.estimatedTimeSeconds[1]}s`;
   const outpaintTime = `${EDIT_ACTION_CONFIGS.outpaint.estimatedTimeSeconds[0]}-${EDIT_ACTION_CONFIGS.outpaint.estimatedTimeSeconds[1]}s`;
+  const relightTime = `${EDIT_ACTION_CONFIGS.relight.estimatedTimeSeconds[0]}-${EDIT_ACTION_CONFIGS.relight.estimatedTimeSeconds[1]}s`;
+  const upscale2xTime = `${EDIT_ACTION_CONFIGS['upscale-2x-fast'].estimatedTimeSeconds[0]}-${EDIT_ACTION_CONFIGS['upscale-2x-fast'].estimatedTimeSeconds[1]}s`;
+  const upscale4xTime = `${EDIT_ACTION_CONFIGS['upscale-4x-creative'].estimatedTimeSeconds[0]}-${EDIT_ACTION_CONFIGS['upscale-4x-creative'].estimatedTimeSeconds[1]}s`;
+  const removeBackgroundTime = `${EDIT_ACTION_CONFIGS['remove-background'].estimatedTimeSeconds[0]}-${EDIT_ACTION_CONFIGS['remove-background'].estimatedTimeSeconds[1]}s`;
+  const replaceBackgroundTime = `${EDIT_ACTION_CONFIGS['replace-background'].estimatedTimeSeconds[0]}-${EDIT_ACTION_CONFIGS['replace-background'].estimatedTimeSeconds[1]}s`;
 
   // Map aspect ratio to Tailwind class
   const aspectRatioMap = {
@@ -249,6 +267,30 @@ export function ResultsCard({
                 {/* Action Chips (no tabs) */}
                 <div className="flex flex-wrap items-center justify-center gap-2 px-[0px] py-[20px]">
                   <button
+                    onClick={() => { setActiveTab('adjust'); onUpscale2x?.(); toast.success('Starting 2x upscale...'); }}
+                    className="px-3 py-2 rounded-lg bg-[#57f1d6]/10 border border-[#57f1d6]/30 text-white hover:bg-[#57f1d6]/20 transition-all flex items-center gap-2"
+                  >
+                    <ArrowUp size={14} />
+                    <span>Upscale 2x</span>
+                    <span className="flex items-center gap-1 text-xs text-[#57f1d6]">
+                      <Droplet size={12} fill="#57f1d6" />
+                      {upscale2xCost === 'free' ? 'Free' : upscale2xCost}
+                    </span>
+                    <span className="text-xs text-white/60">({upscale2xTime})</span>
+                  </button>
+                  <button
+                     onClick={() => { setActiveTab('adjust'); onRelight?.(); toast.success('Opening relight tool...'); }}
+                     className="px-3 py-2 rounded-lg bg-[#57f1d6]/10 border border-[#57f1d6]/30 text-white hover:bg-[#57f1d6]/20 transition-all flex items-center gap-2"
+                   >
+                    <Sun size={14} />
+                    <span>Relight</span>
+                    <span className="flex items-center gap-1 text-xs text-[#57f1d6]">
+                      <Droplet size={12} fill="#57f1d6" />
+                      {relightCost}
+                    </span>
+                    <span className="text-xs text-white/60">({relightTime})</span>
+                  </button>
+                  <button
                     onClick={() => { setActiveTab('retouch'); onErase?.(); toast.success('Opening erase tool...'); }}
                     className="px-3 py-2 rounded-lg bg-[#57f1d6]/10 border border-[#57f1d6]/30 text-white hover:bg-[#57f1d6]/20 transition-all flex items-center gap-2"
                   >
@@ -285,6 +327,18 @@ export function ResultsCard({
                     <span className="text-xs text-white/60">({outpaintTime})</span>
                   </button>
                   <button
+                    onClick={() => { setActiveTab('background'); onRemoveBackground?.(); toast.success('Removing background...'); }}
+                    className="px-3 py-2 rounded-lg bg-[#57f1d6]/10 border border-[#57f1d6]/30 text-white hover:bg-[#57f1d6]/20 transition-all flex items-center gap-2"
+                  >
+                    <ImageIcon size={14} />
+                    <span>Remove BG</span>
+                    <span className="flex items-center gap-1 text-xs text-[#57f1d6]">
+                      <Droplet size={12} fill="#57f1d6" />
+                      {removeBackgroundCost}
+                    </span>
+                    <span className="text-xs text-white/60">({removeBackgroundTime})</span>
+                  </button>
+                  <button
                     onClick={() => { setActiveTab('variations'); onVariations?.(); toast.success('Generating 3 variations...'); }}
                     className="px-3 py-2 rounded-lg bg-[#57f1d6]/10 border border-[#57f1d6]/30 text-white hover:bg-[#57f1d6]/20 transition-all flex items-center gap-2"
                   >
@@ -298,7 +352,55 @@ export function ResultsCard({
                 </div>
 
                 {/* Expanded Options based on Active Tab */}
-
+                {activeTab === 'adjust' && (
+                  <div className="p-4 rounded-2xl bg-white/5 border border-[#57f1d6]/20 backdrop-blur-sm space-y-3">
+                    <h4 className="text-sm text-white/80 mb-2">Adjust Options</h4>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => {
+                          onUpscale2x?.();
+                          toast.success('Starting 2x upscale...');
+                        }}
+                        className="px-3 py-2 rounded-lg bg-[#57f1d6]/10 border border-[#57f1d6]/30 text-white hover:bg-[#57f1d6]/20 transition-all flex items-center gap-2"
+                      >
+                        <ArrowUp size={14} />
+                        <span>2x Upscale</span>
+                        <span className="flex items-center gap-1 text-xs text-[#57f1d6]">
+                          <Droplet size={12} fill="#57f1d6" />
+                          {upscale2xCost === 'free' ? 'Free' : upscale2xCost}
+                        </span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          onUpscale4x?.();
+                          toast.success('Starting 4x upscale...');
+                        }}
+                        className="px-3 py-2 rounded-lg bg-[#57f1d6]/10 border border-[#57f1d6]/30 text-white hover:bg-[#57f1d6]/20 transition-all flex items-center gap-2"
+                      >
+                        <ArrowUp size={14} />
+                        <span>4x Upscale</span>
+                        <span className="flex items-center gap-1 text-xs text-[#57f1d6]">
+                          <Droplet size={12} fill="#57f1d6" />
+                          {upscale4xCost}
+                        </span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          onRelight?.();
+                          toast.success('Opening relight tool...');
+                        }}
+                        className="px-3 py-2 rounded-lg bg-[#57f1d6]/10 border border-[#57f1d6]/30 text-white hover:bg-[#57f1d6]/20 transition-all flex items-center gap-2"
+                      >
+                        <Sun size={14} />
+                        <span>Relight</span>
+                        <span className="flex items-center gap-1 text-xs text-[#57f1d6]">
+                          <Droplet size={12} fill="#57f1d6" />
+                          {relightCost}
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {activeTab === 'retouch' && (
                   <div className="p-4 rounded-2xl bg-white/5 border border-[#57f1d6]/20 backdrop-blur-sm space-y-3">
@@ -350,9 +452,43 @@ export function ResultsCard({
                   </div>
                 )}
 
+                 {activeTab === 'background' && (
+                   <div className="p-4 rounded-2xl bg-white/5 border border-[#57f1d6]/20 backdrop-blur-sm space-y-3">
+                     <h4 className="text-sm text-white/80 mb-2">Background Options</h4>
+                     <div className="flex flex-wrap gap-2">
+                       <button
+                         onClick={() => {
+                           onRemoveBackground?.();
+                           toast.success('Removing background...');
+                         }}
+                         className="px-3 py-2 rounded-lg bg-[#57f1d6]/10 border border-[#57f1d6]/30 text-white hover:bg-[#57f1d6]/20 transition-all flex items-center gap-2"
+                       >
+                         <ImageIcon size={14} />
+                         <span>Remove Background</span>
+                         <span className="flex items-center gap-1 text-xs text-[#57f1d6]">
+                           <Droplet size={12} fill="#57f1d6" />
+                           {removeBackgroundCost}
+                         </span>
+                       </button>
+                       <button
+                         onClick={() => {
+                           onReplaceBackground?.();
+                           toast.success('Opening background replacement...');
+                         }}
+                         className="px-3 py-2 rounded-lg bg-[#57f1d6]/10 border border-[#57f1d6]/30 text-white hover:bg-[#57f1d6]/20 transition-all flex items-center gap-2"
+                       >
+                         <ImageIcon size={14} />
+                         <span>Replace Background</span>
+                         <span className="flex items-center gap-1 text-xs text-[#57f1d6]">
+                           <Droplet size={12} fill="#57f1d6" />
+                           {replaceBackgroundCost}
+                         </span>
+                       </button>
+                     </div>
+                   </div>
+                 )}
 
-
-                {activeTab === 'variations' && (
+                 {activeTab === 'variations' && (
                   <div className="p-4 rounded-2xl bg-white/5 border border-[#57f1d6]/20 backdrop-blur-sm space-y-3">
                     <h4 className="text-sm text-white/80 mb-2">Generate Variations</h4>
                     <div className="flex flex-wrap gap-2">

@@ -194,6 +194,16 @@ export function HomePage({ onNavigate }: HomePageProps) {
       title: 'Creative Brainstorming: Not sure what you want? Let AI help you discover it',
       description: 'Chat with TaTTTy to explore personalized tattoo concepts',
     },
+    {
+      image: 'https://images.unsplash.com/photo-1608136254174-7790c2a89a05?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=600',
+      title: 'Cover-ups & Transformations: Turn old ink into new art',
+      description: 'Use AI to design tasteful cover-ups and style upgrades',
+    },
+    {
+      image: 'https://images.unsplash.com/photo-1597308374645-76cead1a9362?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=600',
+      title: 'Body Placement Ideas: Visualize the perfect spot before you ink',
+      description: 'Preview designs on different body areas to decide with confidence',
+    },
   ];
 
   const testimonials = [
@@ -389,7 +399,7 @@ export function HomePage({ onNavigate }: HomePageProps) {
                   backgroundColor: '#57f1d6',
                   color: '#0C0C0D',
                   boxShadow: '0 0 15px rgba(87, 241, 214, 0.4)',
-                  borderRadius: '12px',
+                  borderRadius: '0px',
                   letterSpacing: '2px',
                 }}
               >

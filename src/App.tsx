@@ -11,15 +11,17 @@ import { UserDashboard } from './pages/UserDashboard';
 import { GoogleCallbackHandler } from './components/GoogleCallbackHandler';
 import { PricingPage } from './components/PricingPage';
 import { NotFoundPage } from './components/NotFoundPage';
+import { AdminSettingsPage } from './pages/AdminSettingsPage';
 import { PrivacyPolicyPage } from './pages/policy/PrivacyPolicyPage';
 import { TermsOfServicePage } from './pages/policy/TermsOfServicePage';
-import { FloatingEditor } from './components/FloatingEditor';
+
 import { ScreenshotProtection } from './components/shared/ScreenshotProtection';
 import { Toaster } from './components/ui/sonner';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { GeneratorProvider } from './contexts/GeneratorContext';
 import { InkProvider } from './contexts/InkContext';
 import { ImageEditProvider } from './contexts/ImageEditContext';
+import { ModalProvider } from './contexts/ModalContext';
 import { toast } from 'sonner';
 
 function AppContent() {
@@ -95,6 +97,8 @@ function AppContent() {
       case 'settings':
       case 'account':
         return <GeneratorPage onNavigate={handleNavigate} />;
+      case 'admin-settings':
+        return <AdminSettingsPage onNavigate={handleNavigate} />;
       case '404':
       case 'not-found':
         return <NotFoundPage onNavigate={handleNavigate} />;
@@ -132,13 +136,7 @@ function AppContent() {
       </main>
       {!shouldHideFooter && <Footer onNavigate={handleNavigate} />}
       
-      {/* Floating Editor Widget */}
-      <FloatingEditor
-        isEditMode={isEditMode}
-        onToggleEditMode={() => setIsEditMode(!isEditMode)}
-        selectedElement={selectedElement}
-        onSave={() => {}}
-      />
+
     </div>
   );
 }
@@ -150,8 +148,10 @@ export default function App() {
         <GeneratorProvider>
           <ScreenshotProtection />
           <ImageEditProvider>
-            <AppContent />
-            <Toaster position="bottom-center" expand={false} richColors />
+            <ModalProvider>
+              <AppContent />
+              <Toaster position="bottom-center" expand={false} richColors />
+            </ModalProvider>
           </ImageEditProvider>
         </GeneratorProvider>
       </InkProvider>

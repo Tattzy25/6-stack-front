@@ -20,20 +20,20 @@ interface AuthModalProps {
 }
 
 export function AuthModal({ onClose }: AuthModalProps) {
-  const { isAuthenticated, signInWithGoogle, signInWithOTP, verifyOTP } = useAuth();
-  
+  const { isAuthenticated, isLoading, signInWithGoogle, signInWithOTP, verifyOTP } = useAuth();
+
   const [email, setEmail] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   // Close modal if user is authenticated
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !isLoading) {
       onClose();
     }
-  }, [isAuthenticated, onClose]);
+  }, [isAuthenticated, isLoading, onClose]);
 
   const handleSendOTP = async () => {
     if (!email.trim() || !email.includes('@')) {
@@ -41,7 +41,7 @@ export function AuthModal({ onClose }: AuthModalProps) {
       return;
     }
 
-    setIsLoading(true);
+    setIsSubmitting(true);
     setError('');
 
     try {
@@ -51,7 +51,7 @@ export function AuthModal({ onClose }: AuthModalProps) {
     } catch (err: any) {
       setError(err.message || 'Failed to send verification code');
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -61,7 +61,7 @@ export function AuthModal({ onClose }: AuthModalProps) {
       return;
     }
 
-    setIsLoading(true);
+    setIsSubmitting(true);
     setError('');
 
     try {
@@ -70,12 +70,12 @@ export function AuthModal({ onClose }: AuthModalProps) {
     } catch (err: any) {
       setError(err.message || 'Invalid verification code');
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
-    setIsLoading(true);
+    setIsSubmitting(true);
     setError('');
 
     try {
@@ -83,7 +83,7 @@ export function AuthModal({ onClose }: AuthModalProps) {
       // Auth success - modal will close automatically when isAuthenticated changes
     } catch (err: any) {
       setError(err.message || 'Failed to sign in with Google');
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -122,7 +122,7 @@ export function AuthModal({ onClose }: AuthModalProps) {
           {/* Google Sign In */}
           <button
             onClick={handleGoogleSignIn}
-            disabled={isLoading}
+            disabled={isSubmitting}
             className="w-full py-3 px-4 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-white transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <GoogleIcon size={20} />

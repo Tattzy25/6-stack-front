@@ -10,12 +10,10 @@ export interface BaseModelOptionProps {
   selected: boolean;
   onSelect: (id: ModelOptionId) => void;
   className?: string;
-  // Added for cost and lock state integration
-  disabled?: boolean;
+  // Added for cost integration
   inkCost?: number; // base INK cost for this model
   estimatedSeconds?: [number, number]; // e.g., [2, 6]
-  locked?: boolean; // true if not available for current tier
-  lockReason?: string; // e.g., "Upgrade to Creator"
+  layout?: 'square' | 'wide'
 }
 
 export interface ModelSelectPanelProps {

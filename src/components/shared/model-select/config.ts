@@ -2,31 +2,36 @@ import type { ModelOptionId } from './types';
 
 export interface ModelOptionConfig {
   id: ModelOptionId;
-  label: string;
-  subtitle?: string;
-  badge?: string;
+  label: string; // top name
+  subtitle?: string; // bottom descriptor
+  badge?: string; // e.g., Recommended, Popular
 }
 
 export const MODEL_OPTION_CONFIGS: ModelOptionConfig[] = [
   {
     id: 'auto',
-    label: 'Auto (Recommended) — chooses best model',
+    label: 'Auto',
+    subtitle: 'Let me decide',
+    badge: 'Recommended',
   },
   {
     id: 'flash',
-    label: 'Flash - Fast Draft',
+    label: 'Flash',
+    subtitle: 'Fast draft',
   },
   {
     id: 'medium',
-    label: 'Medium - Balanced',
+    label: 'Medium',
+    subtitle: 'Balanced',
   },
   {
     id: 'large',
-    label: 'Large - Detailed',
-    badge: 'Popular',
+    label: 'Large',
+    subtitle: 'Detailed',
   },
   {
     id: 'turbo',
-    label: 'Turbo - MaXX Detailed',
+    label: 'Turbo',
+    subtitle: 'Max details',
   },
 ];

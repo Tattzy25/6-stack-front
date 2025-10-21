@@ -2,9 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import { Sparkles, Droplet, MessageCircle, ShoppingCart } from 'lucide-react';
 import { useInk } from '../../contexts/InkContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useModal } from '../../contexts/ModalContext';
 import { InkCostButton } from './InkCostButton';
-import { LowBalanceModal } from './LowBalanceModal';
-import { AuthModal } from './AuthModal';
 
 interface AskTaTTTyProps {
   // Core functionality
@@ -58,12 +57,10 @@ export function AskTaTTTy({
 }: AskTaTTTyProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [showLowBalanceModal, setShowLowBalanceModal] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
   const [actionPending, setActionPending] = useState<'optimize' | 'idea' | null>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
-  
-  const { isAuthenticated } = useAuth();
+
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const { 
     tier, 
     balance, 
@@ -72,6 +69,7 @@ export function AskTaTTTy({
     deductInk,
     usageToday 
   } = useInk();
+  const { openAuthModal, openLowBalanceModal } = useModal();
   
   const showLoading = externalLoading || isLoading;
   
@@ -154,14 +152,37 @@ export function AskTaTTTy({
     return data.suggestion || data.text || '';
   };
 
+  const ensureAuthenticated = (): boolean => {
+    if (isAuthLoading) {
+      return false;
+    }
+
+    if (!isAuthenticated) {
+      setIsOpen(false);
+      openAuthModal();
+      return false;
+    }
+
+    return true;
+  };
+
   const handleOptimize = async () => {
+    if (!ensureAuthenticated()) {
+      return;
+    }
+
     // Check if user can afford this action
     const cost = optimizeCost === 'free' ? 0 : optimizeCost;
     
     if (!canAfford(cost)) {
       setActionPending('optimize');
-      setShowLowBalanceModal(true);
       setIsOpen(false);
+      openLowBalanceModal({
+        requiredCredits: cost,
+        onPurchase: handlePurchase,
+        onSubscribe: handleSubscribe,
+        onClose: () => setActionPending(null),
+      });
       return;
     }
     
@@ -214,13 +235,22 @@ export function AskTaTTTy({
   };
 
   const handleIdeas = async () => {
+    if (!ensureAuthenticated()) {
+      return;
+    }
+
     // Check if user can afford this action
     const cost = ideaCost === 'free' ? 0 : ideaCost;
     
     if (!canAfford(cost)) {
       setActionPending('idea');
-      setShowLowBalanceModal(true);
       setIsOpen(false);
+      openLowBalanceModal({
+        requiredCredits: cost,
+        onPurchase: handlePurchase,
+        onSubscribe: handleSubscribe,
+        onClose: () => setActionPending(null),
+      });
       return;
     }
     
@@ -274,15 +304,16 @@ export function AskTaTTTy({
 
   const handleInkUp = () => {
     setIsOpen(false);
-    
-    // If not authenticated, show auth modal first
-    if (!isAuthenticated) {
-      setShowAuthModal(true);
+
+    // If not authenticated and not loading, show auth modal first
+    if (!ensureAuthenticated()) {
       return;
     }
-    
-    // If authenticated, show purchase modal
-    setShowLowBalanceModal(true);
+
+    openLowBalanceModal({
+      onPurchase: handlePurchase,
+      onSubscribe: handleSubscribe,
+    });
   };
   
   const handlePurchase = (packId: string) => {
@@ -384,28 +415,6 @@ export function AskTaTTTy({
         </div>
       )}
       
-      {/* Low Balance Modal */}
-      <LowBalanceModal
-        isOpen={showLowBalanceModal}
-        onClose={() => {
-          setShowLowBalanceModal(false);
-          setActionPending(null);
-        }}
-        requiredInk={
-          actionPending === 'optimize' 
-            ? (optimizeCost === 'free' ? 0 : optimizeCost)
-            : actionPending === 'idea'
-            ? (ideaCost === 'free' ? 0 : ideaCost)
-            : 0
-        }
-        onPurchase={handlePurchase}
-        onSubscribe={handleSubscribe}
-      />
-      
-      {/* Auth Modal - For anonymous users */}
-      {showAuthModal && (
-        <AuthModal onClose={() => setShowAuthModal(false)} />
-      )}
     </div>
   );
 }
