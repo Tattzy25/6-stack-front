@@ -2,7 +2,6 @@ import { Button } from './ui/button';
 import { NavigationMenu } from './NavigationMenu';
 import { User, Home, Wand2, Skull, Droplet, ArrowRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-// InkBalancePill removed from header
 import { useInk } from '../contexts/InkContext';
 import { TIER_FEATURES } from '../types/economy';
 import {
@@ -20,19 +19,16 @@ export function Header({ currentPage, onNavigate }: HeaderProps) {
   const { isAuthenticated, user } = useAuth();
   const { balance, tier } = useInk();
   const userType = 'user'; // 'user' or 'artist' - can be extended later
-  // admin crown removed
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 my-[0px] m-[0px]">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16 my-[30px] py-[40px] mx-[0px] px-[0px] py-[30px]">
-          {/* Left section removed: INK badge */}
+          {/* Left spacer (remove duplicate INK tracker) */}
           <div className="flex-1" />
           
           {/* Center: Navigation Icons */}
           <div className="flex items-center gap-8">
-            {/* Admin button removed */}
-
             {/* Home Icon */}
             <button
               onClick={() => onNavigate('home')}

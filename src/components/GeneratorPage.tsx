@@ -13,7 +13,7 @@ import {
   Sparkle,
   Flame,
   Minus,
-  RefreshCw as RefreshIcon,
+  RefreshIcon,
   Search
 } from 'lucide-react';
 import { Button } from './ui/button';
@@ -47,6 +47,13 @@ import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { useGenerator } from '../contexts/GeneratorContext';
 import { SelectionChip } from './shared/SelectionChip';
+import { ModelSelectPanel } from './shared/model-select';
+import type { ModelType } from '../types/economy';
+import { env } from '../utils/env';
+
+
+
+
 
 interface GeneratorPageProps {
   onNavigate: (page: string) => void;
@@ -62,6 +69,7 @@ export function GeneratorPage({ onNavigate }: GeneratorPageProps) {
   const [complexity, setComplexity] = useState([50]);
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState(false);
+  const [resultImageUrl, setResultImageUrl] = useState<string | null>(null);
   const [selectedColorPreference, setSelectedColorPreference] = useState<string | null>(null);
   const [selectedStyle, setSelectedStyle] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
@@ -73,6 +81,7 @@ export function GeneratorPage({ onNavigate }: GeneratorPageProps) {
   const [freestylePrompt, setFreestylePrompt] = useState('');
   const [freestyleImages, setFreestyleImages] = useState<File[]>([]);
   const [moodSearchQuery, setMoodSearchQuery] = useState('');
+  const [selectedModel, setSelectedModel] = useState<ModelType | 'auto'>('auto');
   
   // Sync local state with generator context
   useEffect(() => {
@@ -144,45 +153,92 @@ export function GeneratorPage({ onNavigate }: GeneratorPageProps) {
   }, [isAuthenticated]);
 
   const handleGenerate = async () => {
-    // Check authentication FIRST
-    if (!isAuthenticated) {
-      // Save ALL generator state
-      await saveGeneratorState(
-        selectedGenerator,
-        selectedStyle,
-        selectedPlacement,
-        selectedSize,
-        selectedColorPreference,
-        selectedMood,
-        selectedSkintone,
-        outputType,
-        freestylePrompt,
-        freestyleImages
-      );
-      
-      // Show auth modal
-      setShowAuthModal(true);
-      return;
-    }
-
-    // User is authenticated - proceed with generation
-    setGenerating(true);
-    
-    // Simulate AI generation with realistic delay and potential failure
-    setTimeout(() => {
-      // Simulate 10% chance of failure to test error logging
-      const shouldFail = Math.random() < 0.1;
-      
-      if (shouldFail) {
-        setGenerating(false);
-        setGenerated(false);
-        // Show friendly error message
-        toast.error('Generation timed out. Please try again.');
-      } else {
-        setGenerating(false);
-        setGenerated(true);
+    try {
+      // Read inputs from current UI state
+      const prompt = freestylePrompt.trim();
+      if (!prompt) {
+        toast.error('Please enter a prompt before generating.');
+        return;
       }
-    }, 3000);
+
+      // Map selected model to Stability model value (fallback to medium)
+      const modelMap: Record<string, string> = {
+        flash: 'sd3.5-flash',
+        medium: 'sd3.5-medium',
+        large: 'sd3.5-large',
+        turbo: 'sd3.5-large-turbo',
+        auto: 'sd3.5-medium',
+      };
+      const modelKey = (selectedModel || 'auto') as string;
+      const model = modelMap[modelKey] || modelMap.auto;
+
+      // Start loading
+      setGenerating(true);
+      setGenerated(false);
+
+      // Prepare request
+      const endpoint = `${env.apiBaseUrl}/api/images/generate/sd3`;
+      const payload = {
+        prompt,
+        model,
+        aspect_ratio: '16:9',
+        output_format: 'png',
+        negative_prompt: undefined,
+        mode: model === 'sd3.5-large' ? 'text-to-image' : undefined,
+        options: {
+          style: selectedStyle,
+          placement: selectedPlacement,
+          size: selectedSize,
+          colorPreference: selectedColorPreference,
+          mood: selectedMood,
+          skintone: selectedSkintone,
+          outputType,
+        },
+      };
+
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        throw new Error(errText || `HTTP ${res.status}: ${res.statusText}`);
+      }
+
+      // Handle both JSON (base64) and binary image responses
+      let imageUrl: string | null = null;
+      const contentType = res.headers.get('content-type') || '';
+
+      if (contentType.startsWith('image/')) {
+        const blob = await res.blob();
+        imageUrl = URL.createObjectURL(blob);
+      } else {
+        const data = await res.json().catch(() => ({} as any));
+        const base64 = data.imageBase64 || data.image_base64 || null;
+        const format = payload.output_format;
+        if (base64) {
+          imageUrl = `data:image/${format};base64,${base64}`;
+        }
+      }
+
+      if (!imageUrl) {
+        throw new Error('Backend did not return an image.');
+      }
+
+      setResultImageUrl(imageUrl);
+      setGenerated(true);
+    } catch (error: any) {
+      console.error('Generation failed:', error);
+      toast.error(error?.message || 'Failed to generate image.');
+      setGenerated(false);
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const styles = [
@@ -208,7 +264,6 @@ export function GeneratorPage({ onNavigate }: GeneratorPageProps) {
     'https://images.unsplash.com/photo-1565058698270-c8e5c574f25e?w=400&h=400&fit=crop',
     'https://images.unsplash.com/photo-1611501275019-9b5cda994e8d?w=400&h=400&fit=crop',
   ];
-
 
 
   const getMoodTitle = () => {
@@ -237,7 +292,7 @@ export function GeneratorPage({ onNavigate }: GeneratorPageProps) {
                 display: none;
               }
             `}</style>
-            
+
             {/* Generator Type Selector Card */}
             <div className="pt-8 md:pt-12">
               <GeneratorTypeCard 
@@ -405,23 +460,33 @@ export function GeneratorPage({ onNavigate }: GeneratorPageProps) {
               </div>
             )}
 
+            {/* Model Select Panel */}
+            <div className="pt-6 md:pt-8">
+              <ModelSelectPanel
+                selectedModel={selectedModel}
+                onSelect={setSelectedModel}
+              />
+            </div>
+
             {/* Generator Page Generate Button */}
             <div className="flex justify-center md:pt-12 pt-[100px] pr-[0px] pb-[0px] pl-[0px] mt-[0px] mr-[0px] mb-[10px] ml-[0px]">
               <Gen1Results 
                 onClick={handleGenerate}
                 isGenerating={generating}
+                selectedModel={selectedModel}
               />
             </div>
 
             {/* Results Card - Always Visible (with integrated Generate button) */}
             <div style={{ marginTop: '120px' }} className="pb-8 md:pb-12">
               <ResultsCard 
-                designs={generated ? mockGeneratedDesigns : []}
+                designs={generated ? [resultImageUrl ?? mockGeneratedDesigns[0]] : []}
                 isGenerating={generating}
                 aspectRatio="16/9"
                 maxWidth="6xl"
                 onGenerate={handleGenerate}
                 onNavigate={onNavigate}
+
               />
             </div>
 

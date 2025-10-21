@@ -10,6 +10,8 @@ import {
 } from '../ui/tooltip';
 import { toast } from 'sonner';
 import { HalftoneLoader } from '../generator/HalftoneLoader';
+import { useInk } from '../../contexts/InkContext';
+import { EDIT_ACTION_CONFIGS, getDefaultModelForTier } from '../../types/economy';
 
 interface ResultsCardProps {
   // Core functionality
@@ -38,13 +40,10 @@ interface ResultsCardProps {
   
   // Post-generation editing options
   showEditOptions?: boolean;
-  onUpscale?: (scale: '2x' | '4x' | '40x') => void;
   onRelight?: () => void;
   onErase?: () => void;
   onInpaint?: () => void;
   onOutpaint?: () => void;
-  onRemoveBackground?: () => void;
-  onReplaceBackground?: () => void;
   onVariations?: () => void;
   onOpenEditor?: () => void;
 }
@@ -67,19 +66,27 @@ export function ResultsCard({
   onGenerate,
   onNavigate,
   showEditOptions = true,
-  onUpscale,
   onRelight,
   onErase,
   onInpaint,
   onOutpaint,
-  onRemoveBackground,
-  onReplaceBackground,
   onVariations,
   onOpenEditor,
 }: ResultsCardProps) {
   const [activeTab, setActiveTab] = useState<'adjust' | 'retouch' | 'background' | 'variations' | null>(null);
   const hasGenerated = designs.length > 0 && !isGenerating;
   const generatedImage = designs[0]; // Only use the first image
+
+  // INK costs and time estimates for edit actions
+  const { getEditCost, getGenerationCost, tier } = useInk();
+  const eraseCost = getEditCost('erase');
+  const inpaintCost = getEditCost('inpaint');
+  const outpaintCost = getEditCost('outpaint');
+  const defaultModel = getDefaultModelForTier(tier);
+  const variationsCost = getGenerationCost(defaultModel) * 3;
+  const eraseTime = `${EDIT_ACTION_CONFIGS.erase.estimatedTimeSeconds[0]}-${EDIT_ACTION_CONFIGS.erase.estimatedTimeSeconds[1]}s`;
+  const inpaintTime = `${EDIT_ACTION_CONFIGS.inpaint.estimatedTimeSeconds[0]}-${EDIT_ACTION_CONFIGS.inpaint.estimatedTimeSeconds[1]}s`;
+  const outpaintTime = `${EDIT_ACTION_CONFIGS.outpaint.estimatedTimeSeconds[0]}-${EDIT_ACTION_CONFIGS.outpaint.estimatedTimeSeconds[1]}s`;
 
   // Map aspect ratio to Tailwind class
   const aspectRatioMap = {
@@ -239,108 +246,59 @@ export function ResultsCard({
             {/* Post-Generation Edit Options */}
             {showEditOptions && (
               <div className="space-y-4 mt-6">
-                {/* Main Action Chips */}
+                {/* Action Chips (no tabs) */}
                 <div className="flex flex-wrap items-center justify-center gap-2 px-[0px] py-[20px]">
-                  {/* Adjust Button */}
                   <button
-                    onClick={() => setActiveTab(activeTab === 'adjust' ? null : 'adjust')}
-                    className={`px-4 py-2 rounded-full border-2 transition-all flex items-center gap-2 ${
-                      activeTab === 'adjust'
-                        ? 'bg-[#57f1d6] border-[#57f1d6] text-[#0C0C0D]'
-                        : 'bg-transparent border-[#57f1d6]/30 text-white hover:border-[#57f1d6]/60'
-                    }`}
+                    onClick={() => { setActiveTab('retouch'); onErase?.(); toast.success('Opening erase tool...'); }}
+                    className="px-3 py-2 rounded-lg bg-[#57f1d6]/10 border border-[#57f1d6]/30 text-white hover:bg-[#57f1d6]/20 transition-all flex items-center gap-2"
                   >
-                    <Sparkles size={16} />
-                    <span className="text-[20px] font-[Orbitron]">Upscale</span>
+                    <Wand2 size={14} />
+                    <span>Erase</span>
+                    <span className="flex items-center gap-1 text-xs text-[#57f1d6]">
+                      <Droplet size={12} fill="#57f1d6" />
+                      {eraseCost}
+                    </span>
+                    <span className="text-xs text-white/60">({eraseTime})</span>
                   </button>
-
-                  {/* Retouch Button */}
                   <button
-                    onClick={() => setActiveTab(activeTab === 'retouch' ? null : 'retouch')}
-                    className={`px-4 py-2 rounded-full border-2 transition-all flex items-center gap-2 ${
-                      activeTab === 'retouch'
-                        ? 'bg-[#57f1d6] border-[#57f1d6] text-[#0C0C0D]'
-                        : 'bg-transparent border-[#57f1d6]/30 text-white hover:border-[#57f1d6]/60'
-                    }`}
+                    onClick={() => { setActiveTab('retouch'); onInpaint?.(); toast.success('Opening inpaint tool...'); }}
+                    className="px-3 py-2 rounded-lg bg-[#57f1d6]/10 border border-[#57f1d6]/30 text-white hover:bg-[#57f1d6]/20 transition-all flex items-center gap-2"
                   >
-                    <Wand2 size={16} />
-                    <span className="text-[20px] font-[Orbitron]">Retouch</span>
+                    <Wand2 size={14} />
+                    <span>Inpaint</span>
+                    <span className="flex items-center gap-1 text-xs text-[#57f1d6]">
+                      <Droplet size={12} fill="#57f1d6" />
+                      {inpaintCost}
+                    </span>
+                    <span className="text-xs text-white/60">({inpaintTime})</span>
                   </button>
-
-                  {/* Background Button */}
                   <button
-                    onClick={() => setActiveTab(activeTab === 'background' ? null : 'background')}
-                    className={`px-4 py-2 rounded-full border-2 transition-all flex items-center gap-2 ${
-                      activeTab === 'background'
-                        ? 'bg-[#57f1d6] border-[#57f1d6] text-[#0C0C0D]'
-                        : 'bg-transparent border-[#57f1d6]/30 text-white hover:border-[#57f1d6]/60'
-                    }`}
+                    onClick={() => { setActiveTab('retouch'); onOutpaint?.(); toast.success('Opening outpaint tool...'); }}
+                    className="px-3 py-2 rounded-lg bg-[#57f1d6]/10 border border-[#57f1d6]/30 text-white hover:bg-[#57f1d6]/20 transition-all flex items-center gap-2"
                   >
-                    <ImageIcon size={16} />
-                    <span className="text-[20px] font-[Orbitron]">Background</span>
+                    <Wand2 size={14} />
+                    <span>Outpaint</span>
+                    <span className="flex items-center gap-1 text-xs text-[#57f1d6]">
+                      <Droplet size={12} fill="#57f1d6" />
+                      {outpaintCost}
+                    </span>
+                    <span className="text-xs text-white/60">({outpaintTime})</span>
                   </button>
-
-                  {/* Variations Button */}
                   <button
-                    onClick={() => setActiveTab(activeTab === 'variations' ? null : 'variations')}
-                    className={`px-4 py-2 rounded-full border-2 transition-all flex items-center gap-2 ${
-                      activeTab === 'variations'
-                        ? 'bg-[#57f1d6] border-[#57f1d6] text-[#0C0C0D]'
-                        : 'bg-transparent border-[#57f1d6]/30 text-white hover:border-[#57f1d6]/60'
-                    }`}
+                    onClick={() => { setActiveTab('variations'); onVariations?.(); toast.success('Generating 3 variations...'); }}
+                    className="px-3 py-2 rounded-lg bg-[#57f1d6]/10 border border-[#57f1d6]/30 text-white hover:bg-[#57f1d6]/20 transition-all flex items-center gap-2"
                   >
-                    <Shuffle size={16} />
-                    <span className="text-[20px] font-[Orbitron]">Variations</span>
-                  </button>
-
-                  {/* Open in Editor Button */}
-                  <button
-                    onClick={() => {
-                      onOpenEditor?.();
-                      toast.success('Opening in full editor...');
-                    }}
-                    className="px-4 py-2 rounded-full border-2 bg-transparent border-accent/30 text-white hover:border-accent/60 transition-all flex items-center gap-2"
-                  >
-                    <Edit3 size={16} />
-                    <span className="text-[20px] font-[Orbitron]">Open in Editor</span>
+                    <Shuffle size={14} />
+                    <span>3x Variations</span>
+                    <span className="flex items-center gap-1 text-xs text-[#57f1d6]">
+                      <Droplet size={12} fill="#57f1d6" />
+                      {variationsCost}
+                    </span>
                   </button>
                 </div>
 
                 {/* Expanded Options based on Active Tab */}
-                {activeTab === 'adjust' && (
-                  <div className="p-4 rounded-2xl bg-white/5 border border-[#57f1d6]/20 backdrop-blur-sm space-y-3">
-                    <div className="flex flex-wrap gap-2 px-[0px] py-[20px] justify-center">
-                      <button
-                        onClick={() => {
-                          onUpscale?.('4x');
-                          toast.success('Upscaling to 4x...');
-                        }}
-                        className="px-3 py-2 rounded-lg bg-[#57f1d6]/10 border border-[#57f1d6]/30 text-white hover:bg-[#57f1d6]/20 transition-all flex items-center gap-2"
-                      >
-                        <Sparkles size={14} />
-                        <span style={{ fontSize: '20px' }}>Upscale 4X</span>
-                        <span className="flex items-center gap-1 text-xs text-[#57f1d6]">
-                          <Droplet size={12} fill="#57f1d6" />
-                          10
-                        </span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          onUpscale?.('40x');
-                          toast.success('Upscaling to 40x...');
-                        }}
-                        className="px-3 py-2 rounded-lg bg-[#57f1d6]/10 border border-[#57f1d6]/30 text-white hover:bg-[#57f1d6]/20 transition-all flex items-center gap-2"
-                      >
-                        <Sparkles size={14} />
-                        <span style={{ fontSize: '20px' }}>Upscale 40X</span>
-                        <span className="flex items-center gap-1 text-xs text-[#57f1d6]">
-                          <Droplet size={12} fill="#57f1d6" />
-                          20
-                        </span>
-                      </button>
-                    </div>
-                  </div>
-                )}
+
 
                 {activeTab === 'retouch' && (
                   <div className="p-4 rounded-2xl bg-white/5 border border-[#57f1d6]/20 backdrop-blur-sm space-y-3">
@@ -357,7 +315,7 @@ export function ResultsCard({
                         <span>Erase</span>
                         <span className="flex items-center gap-1 text-xs text-[#57f1d6]">
                           <Droplet size={12} fill="#57f1d6" />
-                          5
+                          {eraseCost}
                         </span>
                       </button>
                       <button
@@ -371,7 +329,7 @@ export function ResultsCard({
                         <span>Inpaint</span>
                         <span className="flex items-center gap-1 text-xs text-[#57f1d6]">
                           <Droplet size={12} fill="#57f1d6" />
-                          12
+                          {inpaintCost}
                         </span>
                       </button>
                       <button
@@ -385,48 +343,14 @@ export function ResultsCard({
                         <span>Outpaint</span>
                         <span className="flex items-center gap-1 text-xs text-[#57f1d6]">
                           <Droplet size={12} fill="#57f1d6" />
-                          15
+                          {outpaintCost}
                         </span>
                       </button>
                     </div>
                   </div>
                 )}
 
-                {activeTab === 'background' && (
-                  <div className="p-4 rounded-2xl bg-white/5 border border-[#57f1d6]/20 backdrop-blur-sm space-y-3">
-                    <h4 className="text-sm text-white/80 mb-2">Background Options</h4>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        onClick={() => {
-                          onRemoveBackground?.();
-                          toast.success('Removing background...');
-                        }}
-                        className="px-3 py-2 rounded-lg bg-[#57f1d6]/10 border border-[#57f1d6]/30 text-white hover:bg-[#57f1d6]/20 transition-all flex items-center gap-2"
-                      >
-                        <ImageIcon size={14} />
-                        <span>Remove BG</span>
-                        <span className="flex items-center gap-1 text-xs text-[#57f1d6]">
-                          <Droplet size={12} fill="#57f1d6" />
-                          6
-                        </span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          onReplaceBackground?.();
-                          toast.success('Opening background replacer...');
-                        }}
-                        className="px-3 py-2 rounded-lg bg-[#57f1d6]/10 border border-[#57f1d6]/30 text-white hover:bg-[#57f1d6]/20 transition-all flex items-center gap-2"
-                      >
-                        <ImageIcon size={14} />
-                        <span>Replace BG</span>
-                        <span className="flex items-center gap-1 text-xs text-[#57f1d6]">
-                          <Droplet size={12} fill="#57f1d6" />
-                          8
-                        </span>
-                      </button>
-                    </div>
-                  </div>
-                )}
+
 
                 {activeTab === 'variations' && (
                   <div className="p-4 rounded-2xl bg-white/5 border border-[#57f1d6]/20 backdrop-blur-sm space-y-3">
@@ -443,7 +367,7 @@ export function ResultsCard({
                         <span>3x Variations Bundle</span>
                         <span className="flex items-center gap-1 text-xs text-[#57f1d6]">
                           <Droplet size={12} fill="#57f1d6" />
-                          18
+                          {variationsCost}
                         </span>
                       </button>
                     </div>

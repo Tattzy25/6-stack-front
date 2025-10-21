@@ -19,6 +19,7 @@ import { Toaster } from './components/ui/sonner';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { GeneratorProvider } from './contexts/GeneratorContext';
 import { InkProvider } from './contexts/InkContext';
+import { ImageEditProvider } from './contexts/ImageEditContext';
 import { toast } from 'sonner';
 
 function AppContent() {
@@ -148,8 +149,10 @@ export default function App() {
       <InkProvider>
         <GeneratorProvider>
           <ScreenshotProtection />
-          <AppContent />
-          <Toaster position="bottom-center" expand={false} richColors />
+          <ImageEditProvider>
+            <AppContent />
+            <Toaster position="bottom-center" expand={false} richColors />
+          </ImageEditProvider>
         </GeneratorProvider>
       </InkProvider>
     </AuthProvider>

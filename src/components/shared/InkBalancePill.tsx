@@ -5,7 +5,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '../ui/popover';
-import { TIER_FEATURES } from '../../types/economy';
+import { TIER_FEATURES, MODEL_CONFIGS } from '../../types/economy';
 
 interface InkBalancePillProps {
   onNavigate?: (page: string) => void;
@@ -24,6 +24,10 @@ export function InkBalancePill({ onNavigate }: InkBalancePillProps) {
       : balancePercent > 20
       ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400'
       : 'bg-red-500/10 border-red-500/30 text-red-400';
+  
+  // Approximate counts based on base model INK costs
+  const approxFlash = Math.floor(balance / MODEL_CONFIGS.flash.baseInkCost);
+  const approxTurbo = Math.floor(balance / MODEL_CONFIGS.turbo.baseInkCost);
   
   return (
     <Popover>
@@ -56,6 +60,9 @@ export function InkBalancePill({ onNavigate }: InkBalancePillProps) {
             </div>
             <p className="text-sm text-white/60 capitalize">
               {tier} Plan • {TIER_FEATURES[tier].rolloverDays}-day rollover
+            </p>
+            <p className="text-xs text-white/50 mt-1">
+              ≈ {approxFlash} Flash or {approxTurbo} Turbo left
             </p>
           </div>
           

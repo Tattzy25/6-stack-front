@@ -10,6 +10,8 @@ interface ClientEnv {
   readonly googleClientId: string;
   readonly googleRedirectUri?: string;
   readonly masterCode?: string;
+  readonly stabilityApiKey?: string;
+  readonly stabilityApiBaseUrl?: string;
 }
 
 const rawEnv: Record<string, unknown> = typeof import.meta !== 'undefined' ? import.meta.env ?? {} : {};
@@ -30,6 +32,8 @@ const env: ClientEnv = {
   googleClientId: sanitize(rawEnv.VITE_GOOGLE_CLIENT_ID),
   googleRedirectUri: sanitize(rawEnv.VITE_GOOGLE_REDIRECT_URI) || undefined,
   masterCode: sanitize(rawEnv.VITE_MASTER_CODE) || undefined,
+  stabilityApiKey: sanitize(rawEnv.VITE_STABILITY_API_KEY) || undefined,
+  stabilityApiBaseUrl: sanitize(rawEnv.VITE_STABILITY_API_BASE_URL) || 'https://api.stability.ai',
 };
 
 function validateEnv(config: ClientEnv): void {

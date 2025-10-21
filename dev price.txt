@@ -1,0 +1,201 @@
+You have three core moments: ideation (Optimize/Idea/Brainstorm), generation (models Flash/Medium/Large/Turbo), and post-gen editing (upscale, inpaint/outpaint, background, etc.).
+The most important UX principle is momentum: reduce context switching between “I like this direction” and “let me tweak it.” That informs whether editing should be inline or on a separate page, and how model selection appears.
+Editing tools placement: inline first, dedicated editor second
+
+Why inline: Users are most motivated right after a result appears. A “Post-Generate Editor” panel inside the result view lets them upscale, erase/inpaint, outpaint, relight, or generate 3 quick variations without leaving the page.
+Dedicated editor: Keep a full “Editor” workspace accessible from Dashboard > My Designs for deep edits later (batch upscales, background removal, large canvases, precise inpainting). This is ideal for saved designs.
+Minimal viable structure
+Result screen: show the final grid/image plus an “Edit” side panel (collapsible). Tabs: Adjust (Upscale, Relight), Retouch (Erase/Inpaint/Outpaint), Background (Remove/Replace), Variations (x3 reseeds).
+Each tool shows its INK cost on the button before use. If balance is insufficient, open a slim top-up modal with “Subscribe” vs “Top up INK.”
+“Open in Editor” button deep-links the current image into the dedicated Editor page if the user wants full-screen tools.
+Why not separate-only: Forcing a page change after Generate breaks momentum and reduces conversions. Inline first; dedicated second covers both behaviors.
+Model selection: simple default with optional control
+
+Default: “Auto (Recommended)” decides the model based on tier and context:
+Free → Flash
+Creator → Medium for first pass, Large when “More detail” toggle is on, Flash for fast previews
+Studio → Large by default, Turbo when “Max detail” toggle is on
+Advanced toggle: Show a compact picker so power users can choose explicitly with microcopy and visible INK cost. This keeps transparency and control without overwhelming new users.
+UI approach (works on desktop and mobile)
+Quality slider (Draft / Standard / Detailed / Pro+), with a “Show models” link.
+Or simple radio: Auto (Recommended), Flash, Medium, Large, Turbo. Locked items show a lock icon with “Upgrade to unlock.” The Generate button always updates to show the exact INK cost for the current choice.
+Micro-economics and clarity
+
+Always show balance as “Balance: 246 INK — ≈ 30 Flash or 8 Turbo left.”
+All action buttons show INK costs upfront.
+Regenerate bundle buttons show savings: “3x reseed — 16 INK (save 33%).”
+Editing tool costs appear inline on the tool controls; confirm before deducting.
+Keep Free tier editing available but meaningful: allow preview edits or 1–2 upscales so they feel the power, then require INK or upgrade.
+UI update checklist for your developer (direct, build-ready)
+
+Global
+Header: show INK balance pill “246 INK” with tooltip “≈ 30 Flash or 8 Turbo.”
+Low-balance modal: offers
+Subscribe (shows Creator/Studio with included INK and per-INK effective note)
+Session Booster: 120 INK for $5.99
+Token Packs: 80/$4.99, 200/$9, 600/$24, 1500/$49
+INK refund toast: “Refunded 12 INK due to an error.”
+2. Model picker (on session workspace, above Generate)
+
+Default: Auto (Recommended). Subtext: “Picks the best model for your tier and detail.”
+“Manual” toggle reveals:
+Flash — Fast draft — 8 INK — best for quick concepts
+Medium — Balanced — 12 INK — best for clean previews
+Large — Detailed — 18 INK — best for final concepts
+Turbo — Max detail — 30 INK — best for premium finals
+Lock states by tier:
+Free: only Flash; others show lock with “Upgrade to Creator to unlock Medium/Large; Studio for Turbo.”
+Generate button text updates in real time: “Generate — 12 INK (6–12s)”
+3. Ask TaTTTy controls (near text input)
+
+Optimize button: shows cost by tier (Free: 3 INK; Creator/Studio: Free).
+Idea button: cost by tier (Free: 5 INK; Creator: 1 INK; Studio: Free up to 50/day).
+Brainstorm chat chip: “10 messages — [8 INK Free] [2 INK Creator] [Free Studio up to 200/day].” Show a small usage counter.
+4. Post-Generate Result screen
+
+Left: result grid or single image with tabs for Variations (x3 reseed), Download, Share.
+Right: Edit panel (collapsible). Tabs:
+Adjust: Upscale (2x/4x), Relight
+Retouch: Erase/Inpaint/Outpaint
+Background: Remove/Replace
+Controls used: shows any ControlNet applied (Sketch/Structure/Style/Style Transfer)
+Each tool has:
+Microcopy: “2x Upscale — 4 INK (Fast). Estimated 2–5s.”
+Confirm button. Deduct INK after success; auto-refund if fail.
+5. Dedicated Editor page (from Dashboard > My Designs and from “Open in Editor”)
+
+Same tool set as the Edit panel but full-screen canvas.
+Breadcrumb and “Back to results” link.
+INK costs identical to inline panel.
+6. Pricing page (3 tiers)
+
+Free, Creator ($12/mo), Studio ($29/mo). Annual toggle (2 months free).
+Show included monthly INK, models unlocked, Ask TaTTTy costs, rollover, and queue priority.
+Token packs below with clear per-INK cost that’s worse than subscription (by design).
+7. Rollover and streak
+
+Rollover info: “Unused INK rolls for 60 days (paid) / 30 days (free).”
+Streak widget: “+5 INK/day logged in; cap +25/week.”
+8. Paywalls and nudges
+
+When user clicks a locked model or tool, show a slim inline banner: “Unlock Large model with Creator. $12/mo — includes 400 INK/month.”
+When INK insufficient: offer Session Booster or packs; secondary action “Subscribe” with “cheaper INK” rationale (no salesy language).
+9. Events to instrument (for tuning)
+
+model_selected, generate_clicked, generate_succeeded/failed, edit_tool_used (tool, model, INK), optimize_clicked, idea_clicked, brainstorm_opened/messages, pack_purchased, subscribe_started/completed, low_balance_modal_shown, reseed_bundle_used.
+10. Copy blocks you can paste
+
+Auto model tooltip: “Auto chooses the best model for your tier so you get speed when exploring and detail when finalizing.”
+INK tooltip: “INK is your creative fuel. Every action shows its INK cost before you confirm. Unused INK rolls over for 60 days on paid plans.”
+Regenerate bundle: “Try 3 new seeds — get one free.”
+How to present the four models to users
+
+Keep Auto as the default.
+Provide manual picker for transparency and control (plus visible INK cost).
+Lock unavailable models by tier with a subtle lock icon and one-line rationale.
+Do not hide models entirely; seeing locked options sets a clear value ladder without being pushy.
+Rationale for this setup
+
+Inline editor keeps the excitement loop tight, boosting conversions and perceived value.
+Dedicated editor supports deeper work on saved designs without rushing.
+Auto defaults reduce choice paralysis; manual picker preserves power.
+Visible INK costs build trust; bundles and reseed discounts encourage “one more try” responsibly.
+Pricing Blueprint (Conclusion — appears last)
+
+Tiers (monthly; annual = 2 months free)
+
+Free — $0/mo
+
+60 INK/month (rollover 30 days)
+Models: Flash
+Exports: Low-res + small watermark
+Ask TaTTTy: Optimize 3 INK; Idea 5 INK; Brainstorm 8 INK per 10 messages (max 20 msgs/day)
+Control tools: Upload allowed; ControlNet locked
+Queue: Standard
+Creator — $12/mo (or $108/year)
+
+400 INK/month (rollover 60 days)
+Models: Flash, Medium, Large
+Exports: Full-res, no watermark
+Ask TaTTTy: Optimize Free; Idea 1 INK; Brainstorm 2 INK per 10 messages (up to 200 msgs/mo)
+Control tools: Sketch + Structure included; Style/Style Transfer available (INK adder)
+Upscales: 10 included 2x per month (then INK)
+Queue: Priority
+License: Personal use
+Studio — $29/mo (or $290/year)
+
+1200 INK/month (rollover 60 days)
+Models: Flash, Medium, Large, Turbo
+Exports: Full-res
+Ask TaTTTy: Optimize Free; Idea Free up to 50/day then 1 INK; Brainstorm Free up to 200 msgs/day then 1 INK per 10
+Control tools: All (Sketch, Structure, Style, Style Transfer)
+Upscales: 40 included 2x per month (then INK)
+Queue: Top priority
+Add-on: Pro Shop +$15/mo (client-use license + 300 INK)
+INK costs per action (shown on buttons)
+
+Generate (base)
+Flash: 8 INK
+Medium: 12 INK
+Large: 18 INK
+Turbo: 30 INK
+Control adders (when using input image/control)
+Sketch: +4 INK
+Structure: +6 INK
+Style: +6 INK
+Style Transfer: +8 INK
+Ask TaTTTy
+Optimize: Free (Creator/Studio); 3 INK (Free)
+Idea: 1 INK (Creator); Free up to 50/day (Studio); 5 INK (Free)
+Brainstorm chat: per 10 messages — 8 INK (Free); 2 INK (Creator); Free up to 200/day then 1 INK per 10 (Studio)
+Edits and post
+Upscale: 2x Fast 4 INK; 2x Conservative 4 INK; 4x Creative 6 INK
+Inpaint/Outpaint/Erase: 8 INK per apply
+Remove/Replace Background & Relight: 8 INK
+Regeneration discounts
+
+Re-generate same prompt within 15 minutes: 50% INK
+3x reseed bundle: pay 2x the single model INK; third reseed is free
+Token packs (PayPal)
+
+Starter: 80 INK — $4.99
+Small: 200 INK — $9
+Medium: 600 INK — $24
+Large: 1500 INK — $49
+Session Booster (low-balance quick buy): 120 INK — $5.99
+Notes: Packs expire in 6 months; if you subscribe within 24 hours of buying a pack, 50% of the pack spend credits your first month.
+Model access by tier
+
+Free: Flash
+Creator: Flash, Medium, Large
+Studio: Flash, Medium, Large, Turbo
+Upgrade/downgrade and rollover
+
+Rollover: Paid tiers 60 days; Free 30 days
+Upgrade: Immediate; INK difference prorated
+Downgrade: Next cycle; rollover preserved up to new tier limits
+Annual: 2 months free; early cancel converts remaining to INK at Large pack rate
+Onboarding and retention
+
+Signup bonus: +100 INK (expires in 7 days)
+Daily streak: +5 INK/day; cap +25/week
+Share-to-community: +4 INK once/day for public posts
+Referral: +100 INK to both after friend’s first generate
+UI copy snippets (exact labels)
+
+Quality selector: “Auto (Recommended) — chooses best model for your tier”
+Manual options:
+“Flash — Fast draft — 8 INK”
+“Medium — Balanced — 12 INK”
+“Large — Detailed — 18 INK”
+“Turbo — Max detail — 30 INK”
+Generate button: “Generate — {INK} INK (est. {sec}s)”
+Edit panel buttons:
+“Upscale 2x — 4 INK”
+“Inpaint — 8 INK”
+“Outpaint — 8 INK”
+“Remove background — 8 INK”
+Low-balance modal:
+Primary: “Session Booster — 120 INK for $5.99”
+Secondary: “Subscribe for cheaper INK”
+Tertiary: “Token packs”

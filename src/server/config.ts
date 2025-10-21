@@ -22,6 +22,7 @@ const envSchema = z.object({
     .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
     .optional()
     .default('info'),
+
 });
 
 const parsed = envSchema.safeParse({
@@ -40,6 +41,7 @@ const parsed = envSchema.safeParse({
   SMTP_FROM_EMAIL: process.env.SMTP_FROM_EMAIL,
   SMTP_FROM_NAME: process.env.SMTP_FROM_NAME,
   LOG_LEVEL: process.env.LOG_LEVEL,
+
 });
 
 if (!parsed.success) {
@@ -70,6 +72,7 @@ export const appConfig = {
     fromName: env.SMTP_FROM_NAME,
   },
   logLevel: env.LOG_LEVEL,
+
 } as const;
 
 export type AppConfig = typeof appConfig;

@@ -1,6 +1,6 @@
 import { Droplet } from 'lucide-react';
 import { useInk } from '../../contexts/InkContext';
-import { ModelType } from '../../types/economy';
+import { ModelType, MODEL_CONFIGS, getDefaultModelForTier } from '../../types/economy';
 
 interface Gen1ResultsProps {
   onClick?: () => void;
@@ -17,14 +17,17 @@ export function Gen1Results({
   selectedModel = 'auto',
   estimatedTime 
 }: Gen1ResultsProps) {
-  const { getGenerationCost, canAfford, tier } = useInk();
+  const { getGenerationCost, tier, balance, canAfford } = useInk();
   
-  // Calculate INK cost based on selected model
-  const inkCost = selectedModel === 'auto' 
-    ? getGenerationCost(tier === 'free' ? 'flash' : tier === 'creator' ? 'medium' : 'large')
-    : getGenerationCost(selectedModel);
+  // Determine effective model for Auto
+  const effectiveModel: ModelType = selectedModel === 'auto'
+    ? getDefaultModelForTier(tier)
+    : selectedModel;
   
+  // Calculate INK cost based on selected/effective model
+  const inkCost = getGenerationCost(effectiveModel);
   const canUserAfford = canAfford(inkCost);
+  const timeStr = estimatedTime ?? `${MODEL_CONFIGS[effectiveModel].estimatedTimeSeconds[0]}-${MODEL_CONFIGS[effectiveModel].estimatedTimeSeconds[1]}s`;
   
   return (
     <>
@@ -69,63 +72,20 @@ export function Gen1Results({
             #ff9ff3,
             #ff6b6b
           );
-          z-index: -2;
-          filter: blur(10px);
-          transform: rotate(0deg);
-          transition: transform 1.5s ease-in-out;
-        }
-
-        .gen-gradient-button:not(:disabled):hover::before {
-          transform: rotate(180deg);
+          animation: spin-gradient 6s linear infinite;
         }
 
         .gen-gradient-button.generating::before {
-          animation: spin-gradient 3s linear infinite;
-        }
-
-        .gen-gradient-button::after {
-          content: "";
-          position: absolute;
-          inset: 3px;
-          background: black;
-          border-radius: 47px;
-          z-index: -1;
-          filter: blur(5px);
+          animation-duration: 2s;
         }
 
         .gen-gradient-text {
-          color: transparent;
-          background: conic-gradient(
-            from 0deg,
-            #ff6b6b,
-            #4ecdc4,
-            #45b7d1,
-            #96ceb4,
-            #feca57,
-            #ff9ff3,
-            #ff6b6b
-          );
-          background-clip: text;
+          position: relative;
+          z-index: 10;
+          background: linear-gradient(90deg, #fff, #fff 40%, #57f1d6, #fff 60%, #fff);
           -webkit-background-clip: text;
-          filter: hue-rotate(0deg);
-        }
-
-        .gen-gradient-button:not(:disabled):hover .gen-gradient-text {
-          animation: hue-rotating 2s linear infinite;
-        }
-
-        .gen-gradient-button.generating .gen-gradient-text {
-          animation: hue-rotating 1s linear infinite;
-        }
-
-        .gen-gradient-button:active:not(:disabled) {
-          transform: scale(0.99);
-        }
-
-        @keyframes hue-rotating {
-          to {
-            filter: hue-rotate(360deg);
-          }
+          background-clip: text;
+          -webkit-text-fill-color: transparent;
         }
 
         @keyframes spin-gradient {
@@ -138,12 +98,23 @@ export function Gen1Results({
         <button 
           className={`gen-gradient-button text-[32px] ${isGenerating ? 'generating' : ''}`}
           onClick={onClick} 
-          disabled={disabled || isGenerating || !canUserAfford}
+          disabled={disabled || isGenerating}
         >
           <span className="gen-gradient-text font-[Rock_Salt]">
             {isGenerating ? 'Creating...' : 'TaTTT NoW'}
           </span>
         </button>
+        {/* INK cost and time estimate under the button */}
+        <div className="flex items-center gap-2 text-white/80 text-sm">
+          <Droplet className="w-4 h-4" fill="currentColor" />
+          <span>{inkCost} INK</span>
+          {timeStr && (
+            <span>({timeStr})</span>
+          )}
+          {!canUserAfford && inkCost > 0 && (
+            <span className="ml-2 text-red-400 text-xs">Need {inkCost - balance} more</span>
+          )}
+        </div>
       </div>
     </>
   );
