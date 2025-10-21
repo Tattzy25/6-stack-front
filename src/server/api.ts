@@ -5,7 +5,6 @@
  * Features:
  * - Email OTP authentication via Stack Auth
  * - Google OAuth
- * - Master password backdoor (<MASTER_PASSCODE>)
  * - Row Level Security (RLS)
  * - UUIDs for all IDs
  * - 30-day sessions
@@ -37,29 +36,24 @@ const emailService = {
 };
 
 const pingDb = overrides.pingDatabase ?? pingDatabase;
+import rateLimit from 'express-rate-limit';
+import pino from 'pino';
+import pinoHttp from 'pino-http';
+import { z } from 'zod';
+import { appConfig } from './config.js';
 
 const app = express();
-const PORT = process.env.PORT || 3001;
-
-// Stack Auth Configuration (Backend ONLY - NEVER expose to frontend)
-const STACK_PROJECT_ID = process.env.STACK_PROJECT_ID;
-const STACK_SECRET_KEY = process.env.STACK_SECRET_SERVER_KEY;
-
-// Validate Stack Auth credentials on startup
-if (!STACK_PROJECT_ID || !STACK_SECRET_KEY) {
-  console.warn('⚠️  Stack Auth credentials not configured. OTP will fall back to dev mode.');
-  console.warn('   Set STACK_PROJECT_ID and STACK_SECRET_SERVER_KEY in your .env file');
-}
-
-// Master backdoor password (for emergency admin access)
-const MASTER_PASSWORD = process.env.MASTER_PASSWORD || '';
+const PORT = appConfig.port || 3001;
+const logger = pino({ level: appConfig.logLevel });
 
 // Database connection
 const sql = overrides.sql ?? createDatabaseClient(process.env.DATABASE_URL || '');
+const sql = neon(appConfig.databaseUrl);
 
 // Middleware
+app.use(pinoHttp({ logger }));
 app.use(cors({
-  origin: process.env.APP_URL || 'http://localhost:5173',
+  origin: appConfig.corsOrigin || 'http://localhost:5173',
   credentials: true,
 }));
 app.use(express.json());
@@ -91,6 +85,61 @@ app.get('/health', async (_req, res) => {
     database: databaseOnline ? 'connected' : 'disconnected',
     environment: process.env.NODE_ENV || 'development',
   });
+const globalRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use(globalRateLimiter);
+
+const randomExamplesQuerySchema = z.object({
+  category: z.string().trim().min(1).max(64).optional(),
+  limit: z.coerce.number().int().min(1).max(24).optional().default(6),
+});
+
+const examplesQuerySchema = z.object({
+  category: z.string().trim().min(1).max(64).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+});
+
+const viewParamsSchema = z.object({
+  id: z.string().uuid('Example ID must be a valid UUID'),
+});
+
+const otpSendSchema = z.object({
+  email: z.string().email('A valid email address is required'),
+});
+
+const otpVerifySchema = z.object({
+  email: z.string().email('A valid email address is required'),
+  code: z.string().regex(/^\d{6}$/, 'OTP code must be a 6 digit string'),
+});
+
+const dbQuerySchema = z.object({
+  sql: z.string().min(1, 'SQL statement is required'),
+  params: z.array(z.unknown()).optional().default([]),
+});
+
+const otpRequestLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (_req, res) => {
+    res.status(429).json({ message: 'Too many OTP requests. Please try again later.' });
+  },
+});
+
+const otpVerifyLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (_req, res) => {
+    res.status(429).json({ message: 'Too many OTP attempts. Please wait and try again.' });
+  },
 });
 
 // ==========================================
@@ -102,6 +151,17 @@ app.get('/api/examples/random', async (req, res) => {
   const categoryParam = typeof req.query.category === 'string' ? req.query.category : undefined;
   const limitParam = typeof req.query.limit === 'string' ? req.query.limit : undefined;
   const limitValue = Number.parseInt(limitParam ?? '6', 10) || 6;
+  const parsed = randomExamplesQuerySchema.safeParse(req.query);
+
+  if (!parsed.success) {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid query parameters',
+      details: parsed.error.flatten().fieldErrors,
+    });
+  }
+
+  const { category, limit } = parsed.data;
 
   try {
     const results = await sql`
@@ -120,10 +180,22 @@ app.get('/api/examples/random', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching random examples:', error);
+        ${category ?? null}::VARCHAR,
+        ${limit}::INTEGER
+      )
+    `;
+
+    res.json({
+      success: true,
+      examples: results,
+      count: results.length,
+    });
+  } catch (error) {
+    logger.error({ err: error }, 'Error fetching random examples');
     res.status(500).json({
       success: false,
       error: 'Failed to fetch examples',
-      examples: []
+      examples: [],
     });
   }
 });
@@ -141,11 +213,15 @@ app.get('/api/examples/featured', async (req, res) => {
       success: true,
       examples: rows,
       count: rows.length
+    res.json({
+      success: true,
+      examples: results,
+      count: results.length
     });
   } catch (error) {
-    console.error('Error fetching featured examples:', error);
-    res.status(500).json({ 
-      success: false, 
+    logger.error({ err: error }, 'Error fetching featured examples');
+    res.status(500).json({
+      success: false,
       error: 'Failed to fetch featured examples',
       examples: []
     });
@@ -161,6 +237,22 @@ app.get('/api/examples', async (req, res) => {
     let results: unknown;
 
     if (categoryParam) {
+  const parsed = examplesQuerySchema.safeParse(req.query);
+
+  if (!parsed.success) {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid query parameters',
+      details: parsed.error.flatten().fieldErrors,
+    });
+  }
+
+  const { category, limit } = parsed.data;
+
+  try {
+    let results;
+
+    if (category) {
       results = await sql`
         SELECT
           id, title, description, image_url, thumbnail_url,
@@ -188,11 +280,20 @@ app.get('/api/examples', async (req, res) => {
       success: true,
       examples: limitedRows,
       count: limitedRows.length
+    
+    if (typeof limit === 'number') {
+      results = results.slice(0, limit);
+    }
+
+    res.json({
+      success: true,
+      examples: results,
+      count: results.length
     });
   } catch (error) {
-    console.error('Error fetching examples:', error);
-    res.status(500).json({ 
-      success: false, 
+    logger.error({ err: error }, 'Error fetching examples');
+    res.status(500).json({
+      success: false,
       error: 'Failed to fetch examples',
       examples: []
     });
@@ -201,18 +302,24 @@ app.get('/api/examples', async (req, res) => {
 
 // Increment view count
 app.post('/api/examples/:id/view', async (req, res) => {
-  const { id } = req.params;
-  
+  const parsed = viewParamsSchema.safeParse(req.params);
+
+  if (!parsed.success) {
+    return res.status(400).json({ success: false, error: 'Invalid example identifier' });
+  }
+
+  const { id } = parsed.data;
+
   try {
     await sql`
-      UPDATE example_images 
-      SET view_count = view_count + 1 
+      UPDATE example_images
+      SET view_count = view_count + 1
       WHERE id = ${id}
     `;
-    
+
     res.json({ success: true });
   } catch (error) {
-    console.error('Error incrementing view count:', error);
+    logger.error({ err: error }, 'Error incrementing view count');
     res.status(500).json({ success: false });
   }
 });
@@ -223,6 +330,15 @@ if (process.env.NODE_ENV !== 'test') {
     .then(() => console.log('✅ Email service connected'))
     .catch(() => console.warn('⚠️  Email service unavailable - OTPs will log to console'));
 }
+testEmailConnection()
+  .then((success) => {
+    if (success) {
+      logger.info('Email service connected');
+    } else {
+      logger.warn('Email service unavailable - OTPs will log to console');
+    }
+  })
+  .catch(error => logger.error({ err: error }, 'Email service connection check failed'));
 
 // ============================================
 // HELPER FUNCTIONS
@@ -271,19 +387,19 @@ async function setUserContext(userId: string | null) {
  * POST /api/auth/otp/send
  * Send OTP to user's email
  */
-app.post('/api/auth/otp/send', async (req, res) => {
+app.post('/api/auth/otp/send', otpRequestLimiter, async (req, res) => {
+  const parsed = otpSendSchema.safeParse(req.body);
+
+  if (!parsed.success) {
+    return res.status(400).json({ message: 'Invalid email address' });
+  }
+
+  const { email } = parsed.data;
+
   try {
-    const { email } = req.body;
-
-    if (!email || !email.includes('@')) {
-      return res.status(400).json({ message: 'Invalid email address' });
-    }
-
-    // Generate OTP
     const code = generateOTP();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    // Store OTP in database
     await sql`
       INSERT INTO otp_codes (email, code, expires_at)
       VALUES (${email}, ${code}, ${expiresAt})
@@ -291,19 +407,18 @@ app.post('/api/auth/otp/send', async (req, res) => {
 
     // Send OTP email
     const emailSent = await emailService.sendOTPEmail(email, code);
+    const emailSent = await sendOTPEmail(email, code);
 
-    console.log(`📧 OTP sent to ${email}: ${code} (expires in 10 min)`);
+    logger.info({ email }, 'OTP generated');
 
-    res.json({ 
-      success: true, 
-      message: emailSent 
-        ? 'OTP sent to your email' 
-        : 'OTP generated (check server console in dev mode)',
-      // Include code in response for dev mode (console fallback)
-      ...(process.env.NODE_ENV === 'development' && { code })
+    res.json({
+      success: true,
+      message: emailSent
+        ? 'OTP sent to your email'
+        : 'OTP generated (check server logs in development)',
     });
   } catch (error) {
-    console.error('Send OTP error:', error);
+    logger.error({ err: error }, 'Send OTP error');
     res.status(500).json({ message: 'Failed to send OTP' });
   }
 });
@@ -311,23 +426,29 @@ app.post('/api/auth/otp/send', async (req, res) => {
 /**
  * POST /api/auth/otp/verify
  * Verify OTP and create session
- * Also handles master password backdoor
+ * Validates user OTPs and establishes authenticated sessions
  */
-app.post('/api/auth/otp/verify', async (req, res) => {
+app.post('/api/auth/otp/verify', otpVerifyLimiter, async (req, res) => {
+  const parsed = otpVerifySchema.safeParse(req.body);
+
+  if (!parsed.success) {
+    return res.status(400).json({ message: 'Email and code required' });
+  }
+
+  const { email, code } = parsed.data;
+
   try {
-    const { email, code } = req.body;
-
-    if (!email || !code) {
-      return res.status(400).json({ message: 'Email and code required' });
-    }
-
     let user: any;
-    let isMasterAccess = false;
 
-    // Check if using master password
-    if (code === MASTER_PASSWORD) {
-      console.log(`🔓 Master password used for: ${email}`);
-      isMasterAccess = true;
+    const otpResult = await sql`
+      SELECT * FROM otp_codes
+      WHERE email = ${email}
+      AND code = ${code}
+      AND expires_at > NOW()
+      AND used = false
+      ORDER BY created_at DESC
+      LIMIT 1
+    `;
 
       // Get or create admin user
       const adminResult = await sql`
@@ -342,35 +463,27 @@ app.post('/api/auth/otp/verify', async (req, res) => {
           RETURNING *
         `;
         user = asRows(newUsers)[0];
+    if (otpResult.length === 0) {
+      return res.status(400).json({ message: 'Invalid or expired OTP' });
+    }
 
-        // Create user profile
-        await sql`
-          INSERT INTO user_profiles (user_id)
-          VALUES (${user.id})
-          ON CONFLICT (user_id) DO NOTHING
-        `;
+    await sql`
+      UPDATE otp_codes
+      SET used = true
+      WHERE id = ${otpResult[0].id}
+    `;
 
-        console.log(`👑 Created new admin user: ${email}`);
-      } else {
-        // Upgrade existing user to admin if using master password
-        await sql`
-          UPDATE users
-          SET role = 'admin', is_master_user = true, email_verified = true
-          WHERE id = ${user.id}
-        `;
-        console.log(`👑 Upgraded user to admin: ${email}`);
-      }
-    } else {
-      // Regular OTP verification
-      const otpResult = await sql`
-        SELECT * FROM otp_codes
-        WHERE email = ${email}
-        AND code = ${code}
-        AND expires_at > NOW()
-        AND used = false
-        ORDER BY created_at DESC
-        LIMIT 1
+    user = await sql`
+      SELECT * FROM users WHERE email = ${email}
+    `.then(r => r[0]);
+
+    if (!user) {
+      const newUsers = await sql`
+        INSERT INTO users (email, email_verified, provider, role)
+        VALUES (${email}, true, 'email', 'user')
+        RETURNING *
       `;
+      user = newUsers[0];
 
       const otpRows = asRows(otpResult);
 
@@ -417,6 +530,20 @@ app.post('/api/auth/otp/verify', async (req, res) => {
 
     // Update last login and increment login count
     const updatedUser = await sql`
+      await sql`
+        INSERT INTO user_profiles (user_id)
+        VALUES (${user.id})
+        ON CONFLICT (user_id) DO NOTHING
+      `;
+
+      sendWelcomeEmail(email, user.name).catch(err =>
+        logger.error({ err }, 'Failed to send welcome email')
+      );
+
+      logger.info({ email }, 'New user signup');
+    }
+
+    await sql`
       UPDATE users
       SET last_login_at = NOW(),
           login_count = login_count + 1
@@ -425,30 +552,28 @@ app.post('/api/auth/otp/verify', async (req, res) => {
     `;
     user = asRows(updatedUser)[0] ?? user;
 
-    // Create session
     const sessionToken = generateSessionToken();
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
 
     await sql`
       INSERT INTO sessions (user_id, token, expires_at, ip_address, user_agent)
       VALUES (
-        ${user.id}, 
-        ${sessionToken}, 
+        ${user.id},
+        ${sessionToken},
         ${expiresAt},
         ${req.ip || null},
         ${req.headers['user-agent'] || null}
       )
     `;
 
-    // Set session cookie
     res.cookie('session_token', sessionToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: appConfig.nodeEnv === 'production',
       sameSite: 'lax',
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      maxAge: 30 * 24 * 60 * 60 * 1000,
     });
 
-    console.log(`✅ Login successful: ${email} (${user.role}${isMasterAccess ? ' - MASTER ACCESS' : ''})`);
+    logger.info({ email, userId: user.id }, 'Login successful');
 
     res.json({
       success: true,
@@ -458,11 +583,11 @@ app.post('/api/auth/otp/verify', async (req, res) => {
         name: user.name,
         avatar: user.avatar_url,
         role: user.role,
-        isMasterUser: user.is_master_user,
+        isAdmin: user.role === 'admin',
       },
     });
   } catch (error) {
-    console.error('Verify OTP error:', error);
+    logger.error({ err: error }, 'Verify OTP error');
     res.status(500).json({ message: 'Failed to verify OTP' });
   }
 });
@@ -495,11 +620,11 @@ app.get('/api/auth/session', async (req, res) => {
         name: user.name,
         avatar: user.avatar_url,
         role: user.role,
-        isMasterUser: user.is_master_user,
+        isAdmin: user.role === 'admin',
       },
     });
   } catch (error) {
-    console.error('Session check error:', error);
+    logger.error({ err: error }, 'Session check error');
     res.status(500).json({ message: 'Failed to check session' });
   }
 });
@@ -516,13 +641,13 @@ app.post('/api/auth/signout', async (req, res) => {
       await sql`
         DELETE FROM sessions WHERE token = ${sessionToken}
       `;
-      console.log(`👋 User signed out`);
+      logger.info('User signed out');
     }
 
     res.clearCookie('session_token');
     res.json({ success: true });
   } catch (error) {
-    console.error('Sign out error:', error);
+    logger.error({ err: error }, 'Sign out error');
     res.status(500).json({ message: 'Failed to sign out' });
   }
 });
@@ -556,7 +681,7 @@ app.post('/api/auth/google/callback', async (req, res) => {
 
     if (!tokenResponse.ok) {
       const error = await tokenResponse.text();
-      console.error('Google token exchange failed:', error);
+      logger.error({ error }, 'Google token exchange failed');
       return res.status(400).json({ message: 'Failed to exchange authorization code' });
     }
 
@@ -637,7 +762,7 @@ app.post('/api/auth/google/callback', async (req, res) => {
           ON CONFLICT (user_id) DO NOTHING
         `;
 
-        console.log(`🎉 New Google user: ${googleUser.email}`);
+        logger.info({ email: googleUser.email }, 'New Google user created');
       }
     } else {
       // Update last login
@@ -669,12 +794,12 @@ app.post('/api/auth/google/callback', async (req, res) => {
     // Set session cookie
     res.cookie('session_token', sessionToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: appConfig.nodeEnv === 'production',
       sameSite: 'lax',
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
     });
 
-    console.log(`✅ Google login successful: ${user.email} (${user.role})`);
+    logger.info({ email: user.email, userId: user.id }, 'Google login successful');
 
     res.json({
       success: true,
@@ -684,11 +809,11 @@ app.post('/api/auth/google/callback', async (req, res) => {
         name: user.name,
         avatar: user.avatar_url,
         role: user.role,
-        isMasterUser: user.is_master_user,
+        isAdmin: user.role === 'admin',
       },
     });
   } catch (error) {
-    console.error('Google OAuth callback error:', error);
+    logger.error({ err: error }, 'Google OAuth callback error');
     res.status(500).json({ message: 'Google authentication failed' });
   }
 });
@@ -712,7 +837,13 @@ app.post('/api/db/query', async (req, res) => {
       await setUserContext(user.id);
     }
 
-    const { sql: query, params } = req.body;
+    const parsed = dbQuerySchema.safeParse(req.body);
+
+    if (!parsed.success) {
+      return res.status(400).json({ message: 'Invalid query payload', details: parsed.error.flatten().fieldErrors });
+    }
+
+    const { sql: query, params } = parsed.data;
 
     // Execute query
     const result = await sql(query, params);
@@ -723,7 +854,7 @@ app.post('/api/db/query', async (req, res) => {
       rowCount: rows.length,
     });
   } catch (error) {
-    console.error('Database query error:', error);
+    logger.error({ err: error }, 'Database query error');
     res.status(500).json({ message: 'Database query failed' });
   }
 });
@@ -825,7 +956,7 @@ app.post('/api/ai/stream', async (req, res) => {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Groq API error:', errorText);
+        logger.error({ error: errorText }, 'Groq API error');
         return res.status(response.status).json({ error: `Groq API failed: ${response.statusText}` });
       }
 
@@ -863,7 +994,7 @@ app.post('/api/ai/stream', async (req, res) => {
           }
         }
       } catch (streamError) {
-        console.error('Groq streaming error:', streamError);
+        logger.error({ err: streamError }, 'Groq streaming error');
       }
 
       res.end();
@@ -986,7 +1117,7 @@ app.post('/api/ai/stream', async (req, res) => {
     res.status(500).json({ error: `AI provider '${provider}' not configured. Set AI_PROVIDER env variable.` });
 
   } catch (error) {
-    console.error('AI streaming error:', error);
+    logger.error({ err: error }, 'AI streaming error');
     res.status(500).json({ error: 'AI streaming failed' });
   }
 });
@@ -1024,7 +1155,7 @@ app.post('/api/groq/chat', async (req, res) => {
       const { getChatPersona, isValidChatPersona } = await import('../personas/chatPersonas.js');
       const requestedPersonaId = personaId || 'brainstorm';
       if (personaId && !isValidChatPersona(personaId)) {
-        console.warn(`Invalid chat personaId: ${personaId}, falling back to brainstorm`);
+        logger.warn({ personaId }, 'Invalid chat personaId, falling back to brainstorm');
       }
       persona = getChatPersona(requestedPersonaId);
       systemPrompt = persona.systemPrompt;
@@ -1032,7 +1163,7 @@ app.post('/api/groq/chat', async (req, res) => {
       const { getBrainstormPersona, isValidBrainstormPersona } = await import('../personas/brainstormPersonas.js');
       const requestedPersonaId = personaId || 'explorer';
       if (personaId && !isValidBrainstormPersona(personaId)) {
-        console.warn(`Invalid brainstorm personaId: ${personaId}, falling back to explorer`);
+        logger.warn({ personaId }, 'Invalid brainstorm personaId, falling back to explorer');
       }
       persona = getBrainstormPersona(requestedPersonaId);
       systemPrompt = persona.systemPrompt;
@@ -1080,7 +1211,7 @@ app.post('/api/groq/chat', async (req, res) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Groq API error:', errorText);
+      logger.error({ error: errorText }, 'Groq API error');
       return res.status(response.status).json({ error: `Groq API failed: ${response.statusText}` });
     }
 
@@ -1121,11 +1252,11 @@ app.post('/api/groq/chat', async (req, res) => {
       res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
       res.end();
     } catch (error) {
-      console.error('Stream processing error:', error);
+      logger.error({ err: error }, 'Stream processing error');
       res.end();
     }
   } catch (error) {
-    console.error('GROQ chat error:', error);
+    logger.error({ err: error }, 'GROQ chat error');
     res.status(500).json({ error: 'Chat failed' });
   }
 });
@@ -1183,5 +1314,19 @@ if (process.env.NODE_ENV !== 'test') {
     console.log('');
   });
 }
+setInterval(async () => {
+  try {
+    await sql`SELECT cleanup_expired_otps()`;
+    await sql`SELECT cleanup_expired_sessions()`;
+    logger.info('Cleaned up expired OTPs and sessions');
+  } catch (error) {
+    logger.error({ err: error }, 'Cleanup error');
+  }
+}, 60 * 60 * 1000); // 1 hour
+
+// Start server
+app.listen(PORT, () => {
+  logger.info({ port: PORT, env: appConfig.nodeEnv }, 'TaTTTy API server running');
+});
 
 export default app;

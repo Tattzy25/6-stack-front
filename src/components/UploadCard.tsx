@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { Upload, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Card } from './ui/card';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/dialog';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { SaveChip } from './shared/SaveChip';
 import { sessionDataStore } from '../services/submissionService';
 import { useAuth } from '../contexts/AuthContext';

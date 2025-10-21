@@ -6,7 +6,8 @@ import { SaveChip } from './SaveChip';
 import { DiamondLoader } from './DiamondLoader';
 import { sessionDataStore } from '../../services/submissionService';
 import { useAuth } from '../../contexts/AuthContext';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
+import { env } from '../../utils/env';
 
 const MIN_CHARACTERS = 50;
 
@@ -85,8 +86,7 @@ export function SourceCard({ generatorType }: SourceCardProps) {
     replaceSelection: boolean = false
   ) => {
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${API_URL}/api/ai/stream`, {
+      const response = await fetch(`${env.apiBaseUrl}/api/ai/stream`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
