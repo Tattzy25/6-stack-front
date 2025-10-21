@@ -5,13 +5,14 @@
  * - Email OTP authentication via Stack Auth + Neon
  * - Google OAuth
  * - Session management
- * - Master access passcode (secret backdoor)
  */
 
 import { toast } from 'sonner';
 import { isMasterPasscode, createMasterUser } from '../config/masterAccess';
 import { getStackConfig } from '../config/stackAuth';
 import { env } from './env';
+import { toast } from 'sonner@2.0.3';
+import { STACK_CONFIG } from '../config/stackAuth';
 
 const API_BASE = env.apiUrl; // Stack Auth backend URL
 const { projectId: STACK_PROJECT_ID, publishableClientKey: STACK_PUBLISHABLE_KEY } = getStackConfig();
@@ -25,7 +26,7 @@ interface User {
   name?: string;
   avatar?: string;
   role?: string;
-  isMasterAdmin?: boolean;
+  isAdmin?: boolean;
 }
 
 interface AuthResponse {
@@ -106,22 +107,6 @@ function sendOTPDev(email: string): void {
  * Verify OTP and sign in user via Stack Auth
  */
 export async function verifyOTP(email: string, code: string): Promise<User> {
-  // Check for master access passcode FIRST (before any API calls)
-  if (isMasterPasscode(code)) {
-    console.log('🔐 Master access granted');
-    const masterUser = createMasterUser(email);
-    
-    // Store in session
-    sessionStorage.setItem('tattty_session', JSON.stringify(masterUser));
-    localStorage.setItem('tattty_user', JSON.stringify(masterUser));
-    
-    toast.success('Access granted. Welcome back. 🔐', {
-      description: 'Master admin privileges activated'
-    });
-    
-    return masterUser;
-  }
-
   try {
     // Stack Auth OTP verification endpoint
     const response = await fetch(`${API_BASE}/auth/otp/verify`, {
@@ -166,22 +151,6 @@ export async function verifyOTP(email: string, code: string): Promise<User> {
  * Development mode: Verify OTP locally
  */
 function verifyOTPDev(email: string, code: string): User {
-  // Check for master access passcode first
-  if (isMasterPasscode(code)) {
-    console.log('🔐 Master access granted');
-    const masterUser = createMasterUser(email);
-    
-    // Store in session
-    sessionStorage.setItem('tattty_session', JSON.stringify(masterUser));
-    localStorage.setItem('tattty_user', JSON.stringify(masterUser));
-    
-    toast.success('Access granted. Welcome back. 🔐', {
-      description: 'Master admin privileges activated'
-    });
-    
-    return masterUser;
-  }
-  
   const stored = DEV_OTP_STORAGE.get(email);
   
   if (!stored) {

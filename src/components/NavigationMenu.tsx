@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { Button } from './ui/button';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
-import { masterAccess } from '../config/masterAccess';
 
 interface NavigationMenuProps {
   onNavigate: (page: string) => void;
@@ -15,7 +14,7 @@ interface NavigationMenuProps {
 export function NavigationMenu({ onNavigate, currentPage, className = '', variant = 'icon' }: NavigationMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { isAuthenticated, user } = useAuth();
-  const isAdmin = user?.stackUserId ? masterAccess.isMasterUser(user.stackUserId) : false;
+  const isAdmin = user?.role === 'admin';
 
   const toggleMenu = () => setIsOpen(!isOpen);
 

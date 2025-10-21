@@ -22,6 +22,7 @@ import { DesignsTab, FavoritesTab, EditsTab } from '../components/user/tabs';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 import { masterAccess } from '../config/masterAccess';
+import { toast } from 'sonner@2.0.3';
 
 interface UserDashboardProps {
   onNavigate: (page: string) => void;
@@ -31,7 +32,7 @@ export function UserDashboard({ onNavigate }: UserDashboardProps) {
   const [activeTab, setActiveTab] = useState('designs');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const { user, isAuthenticated, isLoading } = useAuth();
-  const isAdmin = user?.stackUserId ? masterAccess.isMasterUser(user.stackUserId) : false;
+  const isAdmin = user?.role === 'admin';
 
   // Redirect to auth if not logged in
   useEffect(() => {

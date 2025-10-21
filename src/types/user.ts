@@ -6,7 +6,7 @@ export interface User {
   email: string;
   avatar?: string;
   role?: string;
-  isMasterAdmin?: boolean;
+  isAdmin?: boolean;
   memberSince?: string;
   plan?: string;
   stats?: {

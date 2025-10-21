@@ -3,7 +3,6 @@ import { NavigationMenu } from './NavigationMenu';
 import { User, Home, Wand2, Crown, Skull, Droplet, ArrowRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { InkBalancePill } from './shared/InkBalancePill';
-import { masterAccess } from '../config/masterAccess';
 import { useInk } from '../contexts/InkContext';
 import { TIER_FEATURES } from '../types/economy';
 import {
@@ -21,7 +20,7 @@ export function Header({ currentPage, onNavigate }: HeaderProps) {
   const { isAuthenticated, user } = useAuth();
   const { balance, tier } = useInk();
   const userType = 'user'; // 'user' or 'artist' - can be extended later
-  const isAdmin = user?.isMasterAdmin === true;
+  const isAdmin = user?.role === 'admin';
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 my-[0px] m-[0px]">
@@ -36,7 +35,7 @@ export function Header({ currentPage, onNavigate }: HeaderProps) {
           
           {/* Center: Navigation Icons */}
           <div className="flex items-center gap-8">
-            {/* Admin Crown Icon - Only for master users */}
+            {/* Admin Crown Icon - Only for admins */}
             {isAdmin && (
               <button
                 onClick={() => onNavigate('admin')}

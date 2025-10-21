@@ -18,14 +18,22 @@ export const STACK_CONFIG = {
     afterSignUp: '/generate',
     afterSignOut: '/home',
   },
+const urls = {
+  signIn: '/auth',
+  afterSignIn: '/generate',
+  afterSignUp: '/generate',
+  afterSignOut: '/home',
 } as const;
 
 /**
- * Get Stack Auth configuration from environment or fallback to defaults
+ * Resolve Stack Auth configuration from the runtime environment.
+ * Throws immediately when required values are missing so the app cannot boot with unsafe defaults.
  */
 export function getStackConfig() {
   const projectId = env.stackProjectId || STACK_CONFIG.projectId;
   const publishableKey = env.stackPublishableClientKey || STACK_CONFIG.publishableClientKey;
+  const projectId = import.meta.env?.VITE_STACK_PROJECT_ID;
+  const publishableKey = import.meta.env?.VITE_STACK_PUBLISHABLE_CLIENT_KEY;
 
   if (!projectId || !publishableKey) {
     throw new Error(
@@ -36,6 +44,8 @@ export function getStackConfig() {
   return {
     projectId,
     publishableClientKey: publishableKey,
-    urls: STACK_CONFIG.urls,
-  };
+    urls,
+  } as const;
 }
+
+export const STACK_CONFIG = getStackConfig();

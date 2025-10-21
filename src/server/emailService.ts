@@ -4,31 +4,27 @@
  */
 
 import nodemailer from 'nodemailer';
+import { appConfig } from './config.js';
 
-// SMTP Configuration from environment
+// SMTP Configuration from validated environment
 const SMTP_CONFIG = {
-  host: process.env.SMTP_HOST || 'smtp-relay.gmail.com',
-  port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: process.env.SMTP_SECURE === 'true', // true for 465, false for 587
+  host: appConfig.smtp.host,
+  port: appConfig.smtp.port,
+  secure: appConfig.smtp.secure,
   auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
+    user: appConfig.smtp.user,
+    pass: appConfig.smtp.pass,
   },
 };
 
-const FROM_EMAIL = process.env.SMTP_FROM_EMAIL || 'noreply@tattty.com';
-const FROM_NAME = process.env.SMTP_FROM_NAME || 'TaTTTy';
+const FROM_EMAIL = appConfig.smtp.fromEmail;
+const FROM_NAME = appConfig.smtp.fromName;
 
 // Create reusable transporter
 let transporter: nodemailer.Transporter | null = null;
 
 function getTransporter() {
   if (!transporter) {
-    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-      console.warn('⚠️ SMTP credentials not configured. Emails will only be logged to console.');
-      return null;
-    }
-
     transporter = nodemailer.createTransport(SMTP_CONFIG);
     console.log('📧 Email service initialized');
   }
@@ -42,7 +38,7 @@ export async function sendOTPEmail(email: string, code: string): Promise<boolean
   const transport = getTransporter();
 
   // Development mode: Just log to console
-  if (!transport || process.env.NODE_ENV === 'development') {
+  if (appConfig.nodeEnv !== 'production') {
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('📧 OTP Email (Dev Mode - Not Sent)');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -84,9 +80,9 @@ export async function sendOTPEmail(email: string, code: string): Promise<boolean
  */
 export async function sendWelcomeEmail(email: string, name?: string): Promise<boolean> {
   const transport = getTransporter();
-  
-  if (!transport) {
-    console.log(`📧 Welcome email would be sent to ${email}`);
+
+  if (appConfig.nodeEnv !== 'production') {
+    console.log(`📧 Welcome email (dev mode) -> ${email}`);
     return true;
   }
 
@@ -111,12 +107,12 @@ export async function sendWelcomeEmail(email: string, name?: string): Promise<bo
  * Test SMTP connection
  */
 export async function testEmailConnection(): Promise<boolean> {
-  const transport = getTransporter();
-  
-  if (!transport) {
-    console.log('⚠️ SMTP not configured - skipping connection test');
-    return false;
+  if (appConfig.nodeEnv !== 'production') {
+    console.log('ℹ️ Skipping SMTP connection test in non-production environment');
+    return true;
   }
+
+  const transport = getTransporter();
 
   try {
     await transport.verify();
