@@ -10,12 +10,32 @@
  * - 30-day sessions
  */
 
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import { neon } from '@neondatabase/serverless';
 import crypto from 'crypto';
 import { sendOTPEmail, sendWelcomeEmail, testEmailConnection } from './emailService.js';
+import { createDatabaseClient, pingDatabase, type DatabaseClient } from './database.js';
+
+type ServerOverrides = {
+  sql?: DatabaseClient;
+  sendOTPEmail?: typeof sendOTPEmail;
+  sendWelcomeEmail?: typeof sendWelcomeEmail;
+  testEmailConnection?: typeof testEmailConnection;
+  pingDatabase?: typeof pingDatabase;
+};
+
+const overrides: ServerOverrides =
+  (globalThis as unknown as { __TATTY_SERVER_OVERRIDES__?: ServerOverrides }).__TATTY_SERVER_OVERRIDES__ ?? {};
+
+const emailService = {
+  sendOTPEmail: overrides.sendOTPEmail ?? sendOTPEmail,
+  sendWelcomeEmail: overrides.sendWelcomeEmail ?? sendWelcomeEmail,
+  testEmailConnection: overrides.testEmailConnection ?? testEmailConnection,
+};
+
+const pingDb = overrides.pingDatabase ?? pingDatabase;
 import rateLimit from 'express-rate-limit';
 import pino from 'pino';
 import pinoHttp from 'pino-http';
@@ -27,6 +47,7 @@ const PORT = appConfig.port || 3001;
 const logger = pino({ level: appConfig.logLevel });
 
 // Database connection
+const sql = overrides.sql ?? createDatabaseClient(process.env.DATABASE_URL || '');
 const sql = neon(appConfig.databaseUrl);
 
 // Middleware
@@ -38,6 +59,32 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
+// ============================================
+// HEALTH CHECKS
+// ============================================
+
+app.get('/health', async (_req, res) => {
+  const timestamp = new Date().toISOString();
+
+  if (!process.env.DATABASE_URL) {
+    return res.json({
+      status: 'ok',
+      timestamp,
+      database: 'not_configured',
+      environment: process.env.NODE_ENV || 'development',
+    });
+  }
+
+  const databaseOnline = await pingDb(sql);
+  const status = databaseOnline ? 'ok' : 'error';
+  const httpStatus = databaseOnline ? 200 : 503;
+
+  res.status(httpStatus).json({
+    status,
+    timestamp,
+    database: databaseOnline ? 'connected' : 'disconnected',
+    environment: process.env.NODE_ENV || 'development',
+  });
 const globalRateLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 120,
@@ -101,6 +148,9 @@ const otpVerifyLimiter = rateLimit({
 
 // Get random examples
 app.get('/api/examples/random', async (req, res) => {
+  const categoryParam = typeof req.query.category === 'string' ? req.query.category : undefined;
+  const limitParam = typeof req.query.limit === 'string' ? req.query.limit : undefined;
+  const limitValue = Number.parseInt(limitParam ?? '6', 10) || 6;
   const parsed = randomExamplesQuerySchema.safeParse(req.query);
 
   if (!parsed.success) {
@@ -116,6 +166,20 @@ app.get('/api/examples/random', async (req, res) => {
   try {
     const results = await sql`
       SELECT * FROM get_random_examples(
+        ${categoryParam ?? null}::VARCHAR,
+        ${limitValue}::INTEGER
+      )
+    `;
+
+    const rows = Array.isArray(results) ? (results as any[]) : [];
+
+    res.json({
+      success: true,
+      examples: rows,
+      count: rows.length
+    });
+  } catch (error) {
+    console.error('Error fetching random examples:', error);
         ${category ?? null}::VARCHAR,
         ${limit}::INTEGER
       )
@@ -143,6 +207,12 @@ app.get('/api/examples/featured', async (req, res) => {
       SELECT * FROM get_featured_examples()
     `;
 
+    const rows = Array.isArray(results) ? (results as any[]) : [];
+
+    res.json({
+      success: true,
+      examples: rows,
+      count: rows.length
     res.json({
       success: true,
       examples: results,
@@ -160,6 +230,13 @@ app.get('/api/examples/featured', async (req, res) => {
 
 // Get examples by category
 app.get('/api/examples', async (req, res) => {
+  const categoryParam = typeof req.query.category === 'string' ? req.query.category : undefined;
+  const limitParam = typeof req.query.limit === 'string' ? req.query.limit : undefined;
+
+  try {
+    let results: unknown;
+
+    if (categoryParam) {
   const parsed = examplesQuerySchema.safeParse(req.query);
 
   if (!parsed.success) {
@@ -177,16 +254,16 @@ app.get('/api/examples', async (req, res) => {
 
     if (category) {
       results = await sql`
-        SELECT 
+        SELECT
           id, title, description, image_url, thumbnail_url,
           category, style, tags, is_featured, display_order
         FROM example_images
-        WHERE is_active = TRUE AND category = ${category}
+        WHERE is_active = TRUE AND category = ${categoryParam}
         ORDER BY display_order, created_at DESC
       `;
     } else {
       results = await sql`
-        SELECT 
+        SELECT
           id, title, description, image_url, thumbnail_url,
           category, style, tags, is_featured, display_order
         FROM example_images
@@ -194,6 +271,15 @@ app.get('/api/examples', async (req, res) => {
         ORDER BY display_order, created_at DESC
       `;
     }
+
+    const rows = Array.isArray(results) ? (results as any[]) : [];
+
+    const limitedRows = limitParam ? rows.slice(0, Number.parseInt(limitParam, 10) || rows.length) : rows;
+
+    res.json({
+      success: true,
+      examples: limitedRows,
+      count: limitedRows.length
     
     if (typeof limit === 'number') {
       results = results.slice(0, limit);
@@ -239,6 +325,11 @@ app.post('/api/examples/:id/view', async (req, res) => {
 });
 
 // Test email connection on startup
+if (process.env.NODE_ENV !== 'test') {
+  emailService.testEmailConnection()
+    .then(() => console.log('✅ Email service connected'))
+    .catch(() => console.warn('⚠️  Email service unavailable - OTPs will log to console'));
+}
 testEmailConnection()
   .then((success) => {
     if (success) {
@@ -256,6 +347,10 @@ testEmailConnection()
 // Generate random 6-digit OTP
 function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+function asRows<T = any>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
 }
 
 // Generate session token
@@ -310,6 +405,8 @@ app.post('/api/auth/otp/send', otpRequestLimiter, async (req, res) => {
       VALUES (${email}, ${code}, ${expiresAt})
     `;
 
+    // Send OTP email
+    const emailSent = await emailService.sendOTPEmail(email, code);
     const emailSent = await sendOTPEmail(email, code);
 
     logger.info({ email }, 'OTP generated');
@@ -353,6 +450,19 @@ app.post('/api/auth/otp/verify', otpVerifyLimiter, async (req, res) => {
       LIMIT 1
     `;
 
+      // Get or create admin user
+      const adminResult = await sql`
+        SELECT * FROM users WHERE email = ${email}
+      `;
+      user = asRows(adminResult)[0];
+
+      if (!user) {
+        const newUsers = await sql`
+          INSERT INTO users (email, email_verified, provider, role, is_master_user)
+          VALUES (${email}, true, 'email', 'admin', true)
+          RETURNING *
+        `;
+        user = asRows(newUsers)[0];
     if (otpResult.length === 0) {
       return res.status(400).json({ message: 'Invalid or expired OTP' });
     }
@@ -375,6 +485,51 @@ app.post('/api/auth/otp/verify', otpVerifyLimiter, async (req, res) => {
       `;
       user = newUsers[0];
 
+      const otpRows = asRows(otpResult);
+
+      if (otpRows.length === 0) {
+        return res.status(400).json({ message: 'Invalid or expired OTP' });
+      }
+
+      // Mark OTP as used
+      await sql`
+        UPDATE otp_codes
+        SET used = true
+        WHERE id = ${otpRows[0]?.id}
+      `;
+
+      // Get or create user
+      const userResult = await sql`
+        SELECT * FROM users WHERE email = ${email}
+      `;
+      user = asRows(userResult)[0];
+
+      if (!user) {
+        const newUsers = await sql`
+          INSERT INTO users (email, email_verified, provider, role)
+          VALUES (${email}, true, 'email', 'user')
+          RETURNING *
+        `;
+        user = asRows(newUsers)[0];
+
+        // Create user profile
+        await sql`
+          INSERT INTO user_profiles (user_id)
+          VALUES (${user.id})
+          ON CONFLICT (user_id) DO NOTHING
+        `;
+
+        // Send welcome email (don't await - send in background)
+        emailService.sendWelcomeEmail(email, user.name).catch(err =>
+          console.error('Failed to send welcome email:', err)
+        );
+
+        console.log(`🎉 New user signup: ${email}`);
+      }
+    }
+
+    // Update last login and increment login count
+    const updatedUser = await sql`
       await sql`
         INSERT INTO user_profiles (user_id)
         VALUES (${user.id})
@@ -394,7 +549,8 @@ app.post('/api/auth/otp/verify', otpVerifyLimiter, async (req, res) => {
           login_count = login_count + 1
       WHERE id = ${user.id}
       RETURNING *
-    `.then(r => { user = r[0]; });
+    `;
+    user = asRows(updatedUser)[0] ?? user;
 
     const sessionToken = generateSessionToken();
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
@@ -545,21 +701,23 @@ app.post('/api/auth/google/callback', async (req, res) => {
     const googleUser = await userInfoResponse.json();
 
     // Get or create user in database
-    let user = await sql`
-      SELECT * FROM users 
-      WHERE provider = 'google' 
+    const providerResult = await sql`
+      SELECT * FROM users
+      WHERE provider = 'google'
       AND provider_id = ${googleUser.id}
-    `.then(r => r[0]);
+    `;
+    let user = asRows(providerResult)[0];
 
     if (!user) {
       // Check if email already exists
-      user = await sql`
+      const emailResult = await sql`
         SELECT * FROM users WHERE email = ${googleUser.email}
-      `.then(r => r[0]);
+      `;
+      user = asRows(emailResult)[0];
 
       if (user) {
         // Update existing user with Google OAuth
-        await sql`
+        const updatedGoogleUser = await sql`
           UPDATE users
           SET provider = 'google',
               provider_id = ${googleUser.id},
@@ -570,12 +728,13 @@ app.post('/api/auth/google/callback', async (req, res) => {
               login_count = login_count + 1
           WHERE id = ${user.id}
           RETURNING *
-        `.then(r => { user = r[0]; });
+        `;
+        user = asRows(updatedGoogleUser)[0] ?? user;
       } else {
         // Create new user
         const newUsers = await sql`
           INSERT INTO users (
-            email, 
+            email,
             name, 
             avatar_url, 
             email_verified, 
@@ -594,7 +753,7 @@ app.post('/api/auth/google/callback', async (req, res) => {
           )
           RETURNING *
         `;
-        user = newUsers[0];
+        user = asRows(newUsers)[0];
 
         // Create user profile
         await sql`
@@ -607,13 +766,14 @@ app.post('/api/auth/google/callback', async (req, res) => {
       }
     } else {
       // Update last login
-      await sql`
+      const updatedExistingUser = await sql`
         UPDATE users
         SET last_login_at = NOW(),
             login_count = login_count + 1
         WHERE id = ${user.id}
         RETURNING *
-      `.then(r => { user = r[0]; });
+      `;
+      user = asRows(updatedExistingUser)[0] ?? user;
     }
 
     // Create session
@@ -687,10 +847,11 @@ app.post('/api/db/query', async (req, res) => {
 
     // Execute query
     const result = await sql(query, params);
+    const rows = asRows(result);
 
     res.json({
-      rows: result,
-      rowCount: result.length,
+      rows,
+      rowCount: rows.length,
     });
   } catch (error) {
     logger.error({ err: error }, 'Database query error');
@@ -1127,6 +1288,32 @@ app.get('/api/health', async (req, res) => {
 // ============================================
 
 // Clean up expired OTPs and sessions every hour
+if (process.env.NODE_ENV !== 'test') {
+  setInterval(async () => {
+    try {
+      await sql`SELECT cleanup_expired_otps()`;
+      await sql`SELECT cleanup_expired_sessions()`;
+      console.log('🧹 Cleaned up expired OTPs and sessions');
+    } catch (error) {
+      console.error('Cleanup error:', error);
+    }
+  }, 60 * 60 * 1000); // 1 hour
+}
+
+// Start server (skipped in tests)
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log('');
+    console.log('🚀 TaTTTy API Server Running');
+    console.log('================================');
+    console.log(`📡 URL: http://localhost:${PORT}`);
+    console.log(`📊 Database: ${process.env.DATABASE_URL ? 'Connected ✅' : 'Not configured ❌'}`);
+    console.log(`📧 Email: ${process.env.SMTP_USER || 'Not configured'}`);
+    // Removed logging of master password to avoid leaking secrets
+    console.log('================================');
+    console.log('');
+  });
+}
 setInterval(async () => {
   try {
     await sql`SELECT cleanup_expired_otps()`;
