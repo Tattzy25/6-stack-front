@@ -5,7 +5,7 @@ import { Input } from '../ui/input';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent } from '../ui/dialog';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface FilterGallerySectionProps {

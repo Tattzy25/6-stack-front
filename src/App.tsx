@@ -19,7 +19,7 @@ import { Toaster } from './components/ui/sonner';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { GeneratorProvider } from './contexts/GeneratorContext';
 import { InkProvider } from './contexts/InkContext';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 function AppContent() {
   const [currentPage, setCurrentPage] = useState('home');

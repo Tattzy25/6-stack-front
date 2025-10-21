@@ -5,7 +5,7 @@ import { Card } from './ui/card';
 import { Input } from './ui/input';
 import { Slider } from './ui/slider';
 import { ScrollArea } from './ui/scroll-area';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { getTopStations, registerClick, type RadioStation } from '../utils/radioBrowserApi';
 
 interface Message {

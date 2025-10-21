@@ -6,9 +6,10 @@ import { AskTaTTTy } from './AskTaTTTy';
 import { SaveChip } from './SaveChip';
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
 import { DiamondLoader } from './DiamondLoader';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { sessionDataStore } from '../../services/submissionService';
 import { useAuth } from '../../contexts/AuthContext';
+import { env } from '../../utils/env';
 
 const MIN_CHARACTERS = 50;
 
@@ -190,8 +191,7 @@ export function FreestyleCard({
     setShowLoader(true);
     
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${API_URL}/api/groq/chat`, {
+      const response = await fetch(`${env.apiBaseUrl}/api/groq/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

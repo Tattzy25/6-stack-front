@@ -20,7 +20,7 @@ import { Carousel, CarouselContent, CarouselItem } from './ui/carousel';
 // import { getRandomTattooImages } from '../imageUrls/tattooImages'; // REMOVED - using database now
 import { useAuth } from '../contexts/AuthContext';
 import { saveFreestyleInput, setAuthRedirect } from '../utils/inputPersistence';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { showAuthPromptToast } from './shared/AuthPromptToast';
 // Replace figma asset import with URL to fix build resolution
 const heroBackground = 'https://images.unsplash.com/photo-1611501275019-9b5cda994e8d?w=1920&q=80&auto=format&fit=crop';

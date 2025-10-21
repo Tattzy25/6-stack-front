@@ -20,6 +20,8 @@ import { Progress } from '../components/ui/progress';
 import { FrostCard } from '../components/FrostCard';
 import { DesignsTab, FavoritesTab, EditsTab } from '../components/user/tabs';
 import { useAuth } from '../contexts/AuthContext';
+import { toast } from 'sonner';
+import { masterAccess } from '../config/masterAccess';
 import { toast } from 'sonner@2.0.3';
 
 interface UserDashboardProps {
