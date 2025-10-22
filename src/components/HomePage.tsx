@@ -448,17 +448,34 @@ export function HomePage({ onNavigate }: HomePageProps) {
             </p>
           </div>
           
-          <FrostCardGrid>
-            {useCases.map((useCase, index) => (
-              <ModernImageCard
-                key={index}
-                image={useCase.image}
-                title={useCase.title}
-                description={useCase.description}
-                onClick={() => onNavigate('features')}
-              />
-            ))}
-          </FrostCardGrid>
+          <div className="relative w-full overflow-hidden">
+            <Carousel
+              opts={{
+                align: "start",
+                loop: true,
+                dragFree: true,
+                skipSnaps: false,
+                containScroll: "trimSnaps",
+              }}
+              className="w-full touch-pan-x"
+            >
+              <CarouselContent className="ml-0 pl-[1px]">
+                {useCases.map((useCase, index) => (
+                  <CarouselItem 
+                    key={index}
+                    className="pl-4 basis-[90%] sm:basis-[45%] md:basis-[30%] lg:basis-[25%] min-w-[280px]"
+                  >
+                    <ModernImageCard
+                      image={useCase.image}
+                      title={useCase.title}
+                      description={useCase.description}
+                      onClick={() => onNavigate('features')}
+                    />
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+            </Carousel>
+          </div>
         </div>
       </section>
 

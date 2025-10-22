@@ -1,13 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { cn } from '../../../lib/utils';
 import { MODEL_OPTION_CONFIGS } from './config';
 import { useInk } from '../../../contexts/InkContext';
 import { useAuth } from '../../../contexts/AuthContext';
-import { MODEL_CONFIGS } from '../../../types/economy';
+import { MODEL_CONFIGS, type SubscriptionTier } from '../../../types/economy';
+import { AuthModal } from '../AuthModal';
+import { UpgradeNudge } from '../UpgradeNudge';
+import { LowBalanceModal } from '../LowBalanceModal';
 import { Zap, Sparkles, Crown, Gauge, Skull } from 'lucide-react';
 import { AspectRatio } from '../../ui/aspect-ratio';
 import { isModelAvailable, type ModelType } from '../../../types/economy';
-import { useModal } from '../../../contexts/ModalContext';
+import type { ModelOptionId } from './types';
 
 const MODEL_ICONS = {
   auto: Zap,
@@ -18,19 +21,16 @@ const MODEL_ICONS = {
 } as const;
 
 interface ModelCardProps {
-  id: string;
+  id: ModelOptionId;
   label: string;
-  subtitle: string;
+  subtitle?: string;
   badge?: string;
   selected: boolean;
-  onSelect: (id: string) => void;
-  tier: string | null;
+  onSelect: (id: ModelOptionId) => void;
+  tier: SubscriptionTier | null;
   isAuthenticated: boolean;
   onAuthRequired?: () => void;
-  onUnlockRequired?: (
-    targetTier: 'creator' | 'studio',
-    meta: { id: string; label: string }
-  ) => void;
+  onUpgradeRequired?: (targetTier: 'creator' | 'studio') => void;
   authLoading: boolean;
   layout?: 'standard' | 'wide';
 }
@@ -45,11 +45,11 @@ function ModelCard({
   tier,
   isAuthenticated,
   onAuthRequired,
-  onUnlockRequired,
+  onUpgradeRequired,
   authLoading,
   layout = 'standard',
 }: ModelCardProps) {
-  const Icon = MODEL_ICONS[id];
+  const Icon = MODEL_ICONS[id as keyof typeof MODEL_ICONS];
   
   // Calculate ink cost from MODEL_CONFIGS
   const getInkCost = () => {
@@ -81,7 +81,7 @@ function ModelCard({
       if (tier && !isModelAvailable(model, tier as any)) {
         // For authenticated users with insufficient tier, show upgrade modal
         const targetTier = model === 'turbo' ? 'studio' : 'creator';
-        onUnlockRequired?.(targetTier, { id, label });
+        onUpgradeRequired?.(targetTier);
         return;
       }
     }
@@ -90,7 +90,8 @@ function ModelCard({
     onSelect(id);
   };
 
-  const isAvailable = !tier || id === 'auto' || id === 'flash' || isModelAvailable(id as ModelType, tier);
+  const hasTierAccess = tier ? isModelAvailable(id as ModelType, tier) : true;
+  const isAvailable = id === 'auto' || id === 'flash' || hasTierAccess;
   const isLocked = !isAuthenticated || !isAvailable;
 
   // Visual styling matching the original design
@@ -121,8 +122,8 @@ function ModelCard({
   const labelTextStyle = {
     fontFamily: 'Orbitron, sans-serif',
     textShadow: '0 1px 2px #000, 0 2px 8px rgba(0,0,0,0.55)',
-    fontWeight: id === 'auto' ? 600 : 400,
-    fontSize: layout === 'wide' ? '20px' : '18px', // Increased font size as specified
+    fontWeight: id === 'auto' ? 700 : 500,
+    fontSize: layout === 'wide' ? '24px' : '20px', // Increased font size as specified
   } as React.CSSProperties;
 
   const content = (
@@ -131,7 +132,7 @@ function ModelCard({
         onClick={handleClick}
         className={cn(
           'relative w-full h-full p-4 border-2 transition-all duration-200 flex flex-col items-center justify-center text-center cursor-pointer',
-          isLocked && "opacity-80 hover:opacity-100"
+          isLocked && "opacity-50"
         )}
         style={selected ? selectedStyle : baseStyle}
         aria-disabled={isLocked}
@@ -151,23 +152,18 @@ function ModelCard({
                {label}
              </p>
            </div>
-           <div className="flex items-center gap-1 text-sm text-white/75" style={textStyle}>
-             <span>{subtitle}</span>
-             {inkCost !== undefined && (
-               <>
-                 <span>—</span>
-                 <span className="flex items-center gap-1">
-                   {inkCost} credits
-                   {id === 'turbo' && <Skull className="w-3 h-3 text-white/75" />}
-                 </span>
-               </>
-             )}
+          <div className="flex items-center gap-1 text-sm text-white/75" style={textStyle}>
+            {subtitle && <span>{subtitle}</span>}
+            {inkCost !== undefined && (
+              <>
+                {subtitle && <span>-</span>}
+                <span className="flex items-center gap-1">
+                  {inkCost} credits
+                  {id === 'turbo' && <Skull className="w-3 h-3 text-white/75" />}
+                </span>
+              </>
+            )}
            </div>
-           {isLocked && (
-             <span className="text-[11px] uppercase tracking-[0.2em] text-[#57f1d6]/80">
-               Tap to unlock options
-             </span>
-           )}
          </div>
       </button>
     </div>
@@ -181,23 +177,30 @@ function ModelCard({
 }
 
 interface ModernModelSelectPanelProps {
-  selectedModel: string;
-  onSelect: (model: string) => void;
+  selectedModel: ModelOptionId;
+  onSelect: (model: ModelOptionId) => void;
 }
 
 export function ModernModelSelectPanel({ selectedModel, onSelect }: ModernModelSelectPanelProps) {
   const { tier } = useInk();
   const { isAuthenticated, isLoading } = useAuth();
-  const { openAuthModal, openUnlockModelModal, openLowBalanceModal } = useModal();
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [upgradeTargetTier, setUpgradeTargetTier] = useState<'creator' | 'studio'>('creator');
+  const [showLowBalanceModal, setShowLowBalanceModal] = useState(false);
 
   const handleAuthRequired = () => {
-    openAuthModal();
+    setShowAuthModal(true);
   };
 
-  const handleBoost = (modelId: string, modelLabel: string) => {
-    handlePurchase('session-booster');
-    onSelect(modelId);
-    console.info(`Boosted access granted for ${modelLabel}`);
+  const handleUpgradeRequired = (targetTier: 'creator' | 'studio') => {
+    setUpgradeTargetTier(targetTier);
+    setShowUpgradeModal(true);
+  };
+
+  const handleUpgrade = () => {
+    setShowUpgradeModal(false);
+    setShowLowBalanceModal(true);
   };
 
   const handlePurchase = (packId: string) => {
@@ -208,23 +211,6 @@ export function ModernModelSelectPanel({ selectedModel, onSelect }: ModernModelS
   const handleSubscribe = (tier: string) => {
     console.log('Subscribe to:', tier);
     // Navigate to pricing page for subscription
-  };
-
-  const handleUnlockRequired = (targetTier: 'creator' | 'studio', meta: { id: string; label: string }) => {
-    openUnlockModelModal({
-      modelId: meta.id,
-      modelLabel: meta.label,
-      targetTier,
-      onBoost: () => handleBoost(meta.id, meta.label),
-      onSubscribe: (tierChoice) => {
-        handleSubscribe(tierChoice);
-        openLowBalanceModal({
-          requiredCredits: targetTier === 'studio' ? 1200 : 400,
-          title: `Upgrade to ${targetTier === 'studio' ? 'Studio' : 'Creator'}`,
-          description: 'Choose a plan that keeps premium models unlocked every day.',
-        });
-      },
-    });
   };
 
   return (
@@ -243,7 +229,7 @@ export function ModernModelSelectPanel({ selectedModel, onSelect }: ModernModelS
             tier={tier}
             isAuthenticated={isAuthenticated}
             onAuthRequired={handleAuthRequired}
-            onUnlockRequired={handleUnlockRequired}
+            onUpgradeRequired={handleUpgradeRequired}
             authLoading={isLoading}
             layout="standard"
           />
@@ -264,11 +250,47 @@ export function ModernModelSelectPanel({ selectedModel, onSelect }: ModernModelS
             tier={tier}
             isAuthenticated={isAuthenticated}
             onAuthRequired={handleAuthRequired}
-            onUnlockRequired={handleUnlockRequired}
+            onUpgradeRequired={handleUpgradeRequired}
             authLoading={isLoading}
             layout="wide"
           />
         </div>
+      )}
+
+      {/* Auth Modal - For unsigned users */}
+      {showAuthModal && (
+        <AuthModal onClose={() => setShowAuthModal(false)} />
+      )}
+
+      {/* Upgrade Modal - For signed-in users */}
+      {showUpgradeModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#2A2A2A] border border-white/10 rounded-xl p-6 max-w-md w-full">
+            <UpgradeNudge
+              targetTier={upgradeTargetTier}
+              feature={`${upgradeTargetTier === 'studio' ? 'Turbo' : 'Premium'} models`}
+              variant="card"
+              onUpgrade={handleUpgrade}
+            />
+            <button
+              onClick={() => setShowUpgradeModal(false)}
+              className="mt-4 w-full py-2 text-white/60 hover:text-white/80 transition-colors"
+            >
+              Maybe later
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Low Balance Modal - For subscription flow */}
+      {showLowBalanceModal && (
+        <LowBalanceModal
+          isOpen={showLowBalanceModal}
+          onClose={() => setShowLowBalanceModal(false)}
+          requiredInk={0}
+          onPurchase={handlePurchase}
+          onSubscribe={handleSubscribe}
+        />
       )}
     </div>
   );
